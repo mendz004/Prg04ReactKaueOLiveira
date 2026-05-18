@@ -1,4 +1,4 @@
-import 'bootstrap/dist/css/bootstrap.min.css';
+
 import style from './navBar.module.css';
 
 import { Link } from 'react-router-dom';
@@ -38,6 +38,14 @@ function NavBar() {
                 <ul
                     className={`navbar-nav ms-auto gap-1 py-2 py-lg-0 ${style.list}`}
                 >
+                    <li className="nav-item">
+                        <Link
+                            className="nav-link"
+                            to="/home"
+                        >
+                            Home
+                        </Link>
+                    </li>
 
                     <li className="nav-item">
                         <Link

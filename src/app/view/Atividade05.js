@@ -7,33 +7,45 @@ function Atividade05() {
         <>
 
             <header className='heroSection'>
-                <h1>Atividade 05</h1>
+                <div className="container">
+                    <div className="row">
+                        <div className="col-12 col-md-10 col-lg-8">
+                            <h1>Atividade 05</h1>
 
-                <p className="descricao">Nessa atividade, irei mostrar ás cores escolhidas para meu projeto,
-                    cor principal, cor secundária e a paleta de cores,
-                    irei também justificar o motivo de cada escolha.
-                </p>
+                            <p className="descricao">Nessa atividade, irei mostrar ás cores escolhidas para meu projeto,
+                                cor principal, cor secundária e a paleta de cores,
+                                irei também justificar o motivo de cada escolha.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </header>
 
             <main>
-                
-                <h2>Cor Principal</h2>
-                <p>A cor principal escolhida foi o verde, pois está diretamente associada ao dinheiro,
-                    crescimento financeiro e estabilidade, elementos centrais em um sistema de gestão
-                    de finanças pessoais.</p>
+                <div className='container'>
+                    <div className='row'>
+                        <div className='col-12 col-md-6 col-lg-4'>
+                            <h2>Cor Principal</h2>
+                            <p>A cor principal escolhida foi o verde, pois está diretamente associada ao dinheiro,
+                                crescimento financeiro e estabilidade, elementos centrais em um sistema de gestão
+                                de finanças pessoais.</p>
+                        </div>
 
-                
-                <h2>Cor Secundária</h2>
-                <p>Como secundária, foi utilizado o azul, que transmite confiança, segurança e organização,
-                    reforçando a credibilidade da aplicação.</p>
+                        <div className='col-12 col-md-6 col-lg-4'>
+                            <h2>Cor Secundária</h2>
+                            <p>Como secundária, foi utilizado o azul, que transmite confiança, segurança e organização,
+                                reforçando a credibilidade da aplicação.</p>
+                        </div>
 
-                
-                <h2>Paleta de Cores</h2>
-                <p>A paleta adotada é do tipo degrade, combinando varios tons de verde, e a cor azul para manter harmonia
-                    visual.
-                </p>
-
-            </main>
+                        <div className='col-12 col-md-6 col-lg-4'>
+                            <h2>Paleta de Cores</h2>
+                            <p>A paleta adotada é do tipo degrade, combinando varios tons de verde, e a cor azul para manter harmonia
+                                visual.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </main >
         </>
     )
 }

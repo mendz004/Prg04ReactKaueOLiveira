@@ -6,7 +6,14 @@ function TabelaUsuarios() {
 
         <>
             <header className="heroSection">
-                <h1>Painel Administrativo</h1>
+                <div className="container">
+                    <div className="row">
+                        <div className="col-12 col-md-6 col-lg-4">
+                            <h1>Painel Administrativo</h1>
+                            
+                        </div>
+                    </div>
+                </div>
             </header>
 
             <main>

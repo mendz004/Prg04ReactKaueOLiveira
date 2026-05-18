@@ -6,20 +6,26 @@ function Atividade04() {
 
         <>
             <header className="heroSection">
-                <h1>Atividade 04</h1>
+                <div className="container">
+                    <div className="row">
+                        <div className="col-12 col-md-10 col-lg-8">
+                            <h1>Atividade 04</h1>
 
-                <p className="descricao">Nessa atividade, aprenderemos como inserir um áudio e um video em uma pagina HTML.</p>
-            </header>
+                            <p className="descricao">Nessa atividade, aprenderemos como inserir um áudio e um video em uma pagina HTML.</p>
+                        </div>
+                    </div>
+                </div>
+            </header >
 
             <main>
-                
+
                 <h2>Inserindo Áudio</h2>
 
                 <audio preload="metadata" controls autoplay>
                     <source src="../../infraestructure/assets/midia/audio-html.mp3" type="audio/mpeg"></source>
-                        <p>Seu navegador não suporta o elemento de áudio. <a
-                            href="../../infraestructure/assets/midia/audio-html.mp3" download="audio-html.mp3"
-                            type="audio/mpeg"></a></p>
+                    <p>Seu navegador não suporta o elemento de áudio. <a
+                        href="../../infraestructure/assets/midia/audio-html.mp3" download="audio-html.mp3"
+                        type="audio/mpeg"></a></p>
                 </audio>
 
                 <h2>Inserindo Vídeo</h2>

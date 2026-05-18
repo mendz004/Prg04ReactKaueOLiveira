@@ -1,5 +1,4 @@
 import style from './form.module.css'
-import Acessar from './button/Acessar'
 
 function Form({ onClose }) {
 

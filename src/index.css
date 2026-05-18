@@ -42,6 +42,9 @@ code {
     color: var(--cor-04);
     animation: slideInUp 0.8s ease-out 0.2s both;
 }
+.span {
+    color: var(--cor-01);
+}
 
 @keyframes slideInDown {
     from {

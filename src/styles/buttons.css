@@ -1,7 +1,7 @@
-@import '../../../styles/theme.css';
+@import '../styles/theme.css';
 
 .btn_acessar {
-    
+
     width: 15%;
     height: 50px;
     background-color: var(--cor-02);
