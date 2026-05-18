@@ -54,7 +54,7 @@ function Form({ onClose }) {
                     <form id="mlForm" method="post" onSubmit={handleSubmit} noValidate>
 
                         <div className={style.ml_campo} id="campoEmail">
-                            <input type="email" id="email" name="email" placeholder="kaue@exemple.com"/>
+                            <input type="email" id="email" name="email" placeholder="kaue@exemple.com" />
                             <label htmlFor="email">Email</label>
                         </div>
 
@@ -77,9 +77,6 @@ function Form({ onClose }) {
 
                     </form>
 
-                    <div className={style.ml_links}>
-                        <a href="#">Esqueci minha senha</a>
-                    </div>
 
                 </div>
             </div>
