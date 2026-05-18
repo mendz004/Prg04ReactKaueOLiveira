@@ -1,0 +1,25 @@
+@import '../../../styles/theme.css';
+
+.btn_acessar {
+    
+    width: 15%;
+    height: 50px;
+    background-color: var(--cor-02);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.97rem;
+    font-weight: 700;
+    cursor: pointer;
+    overflow: hidden;
+    letter-spacing: 0.3px;
+    margin-bottom: 12px;
+    transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.18s ease;
+    animation: sobeDe 0.35s ease 0.56s both;
+}
+
+.btn_acessar:hover {
+    background-color: var(--cor-01);
+    box-shadow: 0 8px 24px rgba(79, 154, 123, 0.35);
+    transform: translateY(-2px);
+}

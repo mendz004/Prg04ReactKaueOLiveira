@@ -1,0 +1,15 @@
+@import '../../styles/theme.css';
+
+.fotter {
+    background: linear-gradient(to left, var(--cor-01) 0%, var(--cor-02) 100%);
+    text-align: center;
+    padding: 30px;
+    margin-top: 60px;
+    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.fotter p {
+    margin: 5px 0;
+    font-size: 0.95rem;
+    color: var(--cor-02);
+}
