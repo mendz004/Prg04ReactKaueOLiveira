@@ -23,6 +23,11 @@ function App() {
       <Routes>
 
         <Route
+          path="/"
+          element={<Home />}
+        />
+
+        <Route
           path="/home"
           element={<Home />}
         />
@@ -48,7 +53,7 @@ function App() {
         />
 
       </Routes>
-
+      
       <Fotter />
     </BrowserRouter>
   );

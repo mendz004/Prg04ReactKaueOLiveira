@@ -10,7 +10,7 @@ function TabelaUsuarios() {
                     <div className="row">
                         <div className="col-12 col-md-6 col-lg-4">
                             <h1>Painel Administrativo</h1>
-                            
+
                         </div>
                     </div>
                 </div>
@@ -71,6 +71,33 @@ function TabelaUsuarios() {
                             </td>
                         </tr>
 
+                        <tr>
+                            <td className="tg-0pky">0002</td>
+                            <td className="tg-0pky">Maria Oliveira</td>
+                            <td className="tg-0pky">
+                                maria.oliveira@example.com
+                            </td>
+                            <td className="tg-0pky">
+                                <button>🗑️</button>
+                            </td>
+                            <td className="tg-0pky">
+                                <button>✏️</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td className="tg-0pky">0003</td>
+                            <td className="tg-0pky">Carlos Souza</td>
+                            <td className="tg-0pky">
+                                carlos.souza@example.com
+                            </td>
+                            <td className="tg-0pky">
+                                <button>🗑️</button>
+                            </td>
+                            <td className="tg-0pky">
+                                <button>✏️</button>
+                            </td>
+                        </tr>
                     </tbody>
 
                 </table>
