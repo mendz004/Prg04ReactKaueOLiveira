@@ -1,17 +1,25 @@
 import style from './form.module.css'
 
-function Form({ onClose }) {
-
+function Form({ onClose, mode = 'login' }) {
+    const isRegister = mode === 'register'
 
     function handleSubmit(e) {
         e.preventDefault()
 
+        const nome = document.getElementById('nome')?.value.trim()
         const email = document.getElementById('email').value.trim()
         const senha = document.getElementById('senha').value.trim()
+        const campoNome = document.getElementById('campoNome')
         const campoEmail = document.getElementById('campoEmail')
         const campoSenha = document.getElementById('campoSenha')
 
         let valido = true
+
+        if (isRegister && !nome) {
+            campoNome.classList.add(style.erro)
+            setTimeout(() => campoNome.classList.remove(style.erro), 800)
+            valido = false
+        }
 
         if (!email || !/\S+@\S+\.\S+/.test(email)) {
             campoEmail.classList.add(style.erro)
@@ -39,19 +47,26 @@ function Form({ onClose }) {
     }
 
     return (
-
         <div className={style.ml_overlay} id="mlOverlay" role="dialog" aria-modal="true" aria-labelledby="mlTitulo">
             <div className={style.ml_card}>
-
                 <button className={style.ml_fechar} onClick={onClose} aria-label="Fechar">✕</button>
 
                 <div className={style.ml_inner}>
-
                     <div className={style.ml_icon_wrap}>💰</div>
-                    <h2 className={style.ml_titulo} id="mlTitulo">Entrar na conta</h2>
-                    <p className={style.ml_subtitulo}>Acesse o Gestor de Finanças Pessoais</p>
+                    <h2 className={style.ml_titulo} id="mlTitulo">
+                        {isRegister ? 'Criar conta' : 'Entrar na conta'}
+                    </h2>
+                    <p className={style.ml_subtitulo}>
+                        {isRegister ? 'Cadastre-se para começar a organizar suas finanças.' : 'Acesse o Gestor de Finanças Pessoais'}
+                    </p>
 
                     <form id="mlForm" method="post" onSubmit={handleSubmit} noValidate>
+                        {isRegister && (
+                            <div className={style.ml_campo} id="campoNome">
+                                <input type="text" id="nome" name="nome" placeholder="Seu nome completo" />
+                                <label htmlFor="nome">Nome</label>
+                            </div>
+                        )}
 
                         <div className={style.ml_campo} id="campoEmail">
                             <input type="email" id="email" name="email" placeholder="kaue@exemple.com" />
@@ -63,21 +78,22 @@ function Form({ onClose }) {
                             <label htmlFor="senha">Senha</label>
                         </div>
 
-                        <div className={style.ml_check_row}>
-                            <input type="checkbox" id="lembrar" name="lembrar" />
-                            <label htmlFor="lembrar">Lembrar-me</label>
-                        </div>
+                        {!isRegister && (
+                            <div className={style.ml_check_row}>
+                                <input type="checkbox" id="lembrar" name="lembrar" />
+                                <label htmlFor="lembrar">Lembrar-me</label>
+                            </div>
+                        )}
 
                         <button type="submit" className={style.ml_btn_entrar} id="btnEntrar">
-                            <span className={style.ml_btn_txt}>✓ Entrar</span>
+                            <span className={style.ml_btn_txt}>{isRegister ? '✓ Cadastrar' : '✓ Entrar'}</span>
                             <div className={style.ml_progress} id="mlProgress"></div>
                         </button>
 
-                        <button type="reset" className={style.ml_btn_limpar}>⟲ Limpar campos</button>
-
+                        {!isRegister && (
+                            <button type="reset" className={style.ml_btn_limpar}>⟲ Limpar campos</button>
+                        )}
                     </form>
-
-
                 </div>
             </div>
         </div>

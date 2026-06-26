@@ -41,48 +41,11 @@ function NavBar() {
                     <li className="nav-item">
                         <Link
                             className="nav-link"
-                            to="/home"
+                            to="/"
                         >
                             Home
                         </Link>
                     </li>
-
-                    <li className="nav-item">
-                        <Link
-                            className="nav-link"
-                            to="/atividade03"
-                        >
-                            Atividade 03
-                        </Link>
-                    </li>
-
-                    <li className="nav-item">
-                        <Link
-                            className="nav-link"
-                            to="/atividade04"
-                        >
-                            Atividade 04
-                        </Link>
-                    </li>
-
-                    <li className="nav-item">
-                        <Link
-                            className="nav-link"
-                            to="/atividade05"
-                        >
-                            Atividade 05
-                        </Link>
-                    </li>
-
-                    <li className="nav-item">
-                        <Link
-                            className="nav-link"
-                            to="/usuarios"
-                        >
-                            Tabela Usuários
-                        </Link>
-                    </li>
-
                 </ul>
 
             </div>

@@ -9,6 +9,17 @@ import { useState } from "react"
 function Home() {
 
     const [showForm, setShowForm] = useState(false)
+    const [formMode, setFormMode] = useState('login')
+
+    const openLoginForm = () => {
+        setFormMode('login')
+        setShowForm(true)
+    }
+
+    const openRegisterForm = () => {
+        setFormMode('register')
+        setShowForm(true)
+    }
 
     return (
         <div>
@@ -30,16 +41,19 @@ function Home() {
 
             <section>
                 <div className="container text-center my-4">
-
                     {!showForm && (
-                        <button type="button" className="btn_acessar" onClick={() => setShowForm(true)}>
-                            Acessar
-                        </button>
+                        <div className="d-flex justify-content-center gap-3 flex-wrap">
+                            <button type="button" className="btn_acessar" onClick={openLoginForm}>
+                                Acessar
+                            </button>
+                            <button type="button" className="btn_comecar" onClick={openRegisterForm}>
+                                Comece agora
+                            </button>
+                        </div>
                     )}
-
                 </div>
 
-                {showForm && <Form onClose={() => setShowForm(false)} />}
+                {showForm && <Form mode={formMode} onClose={() => setShowForm(false)} />}
 
             </section>
 
