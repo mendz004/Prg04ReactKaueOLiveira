@@ -1,5 +1,5 @@
 import Home from './app/view/Home';
-import NavBar from './app/components/NavBar';
+import Dashboard from './app/view/Dashboard';
 import Fotter from './app/components/Fotter';
 
 import {
@@ -9,13 +9,9 @@ import {
 } from 'react-router-dom';
 
 function App() {
-
   return (
     <BrowserRouter>
-
-      <NavBar />
       <Routes>
-
         <Route
           path="/"
           element={<Home />}
@@ -26,8 +22,12 @@ function App() {
           element={<Home />}
         />
 
+        <Route
+          path="/dashboard"
+          element={<Dashboard />}
+        />
       </Routes>
-      
+
       <Fotter />
     </BrowserRouter>
   );

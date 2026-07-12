@@ -1,9 +1,7 @@
 
 import style from './navBar.module.css';
 
-import { Link } from 'react-router-dom';
-
-function NavBar() {
+function NavBar({ onOpenLogin, onOpenRegister }) {
 
     return (
 
@@ -11,12 +9,12 @@ function NavBar() {
             className={`${style.navbar} navbar navbar-expand-lg navbar-dark sticky-top`}
         >
 
-            <Link
+            <a
                 className={`navbar-brand ${style.logo}`}
-                to="/"
+                href="/"
             >
                 💰 Gestor de Finanças
-            </Link>
+            </a>
 
             <button
                 className="navbar-toggler"
@@ -39,12 +37,25 @@ function NavBar() {
                     className={`navbar-nav ms-auto gap-1 py-2 py-lg-0 ${style.list}`}
                 >
                     <li className="nav-item">
-                        <Link
-                            className="nav-link"
-                            to="/"
+                        <button
+                            type="button"
+                            className="nav-link border-0 bg-transparent"
+                            aria-label="Abrir formulário de cadastro"
+                            onClick={onOpenRegister}
                         >
-                            Home
-                        </Link>
+                            Comece agora
+                        </button>
+                    </li>
+
+                    <li className="nav-item">
+                        <button
+                            type="button"
+                            className="nav-link border-0 bg-transparent"
+                            aria-label="Abrir formulário de acesso"
+                            onClick={onOpenLogin}
+                        >
+                            Acessar
+                        </button>
                     </li>
                 </ul>
 

@@ -3,6 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '../../index.css'
 import '../../styles/buttons.css'
 import Form from "../components/Form";
+import NavBar from '../components/NavBar';
 import '../../styles/elements.css'
 import { useState } from "react"
 
@@ -22,7 +23,13 @@ function Home() {
     }
 
     return (
+        
         <div>
+            <NavBar
+                onOpenLogin={openLoginForm}
+                onOpenRegister={openRegisterForm}
+            />
+
             <header>
                 <section className="heroSection">
                     <div className="container">

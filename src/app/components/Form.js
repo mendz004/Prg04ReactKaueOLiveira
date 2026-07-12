@@ -3,6 +3,13 @@ import style from './form.module.css'
 function Form({ onClose, mode = 'login' }) {
     const isRegister = mode === 'register'
 
+    const rendaMensalField = isRegister ? (
+        <div className={style.ml_campo} id="campoRendaMensal">
+            <input type="number" id="rendaMensal" name="rendaMensal" placeholder="2500.00" min="0" step="0.01" />
+            <label htmlFor="rendaMensal">Renda mensal</label>
+        </div>
+    ) : null
+
     function handleSubmit(e) {
         e.preventDefault()
 
@@ -42,7 +49,15 @@ function Form({ onClose, mode = 'login' }) {
 
         setTimeout(() => {
             progress.style.width = '100%'
-            setTimeout(() => e.target.submit(), 300)
+            setTimeout(() => {
+                if (!isRegister) {
+                    onClose?.()
+                    window.location.assign('/dashboard')
+                    return
+                }
+
+                e.target.submit()
+            }, 300)
         }, 1800)
     }
 
@@ -68,6 +83,8 @@ function Form({ onClose, mode = 'login' }) {
                             </div>
                         )}
 
+                        {rendaMensalField}
+
                         <div className={style.ml_campo} id="campoEmail">
                             <input type="email" id="email" name="email" placeholder="kaue@exemple.com" />
                             <label htmlFor="email">Email</label>
@@ -77,6 +94,7 @@ function Form({ onClose, mode = 'login' }) {
                             <input type="password" id="senha" name="senha" placeholder="*********" />
                             <label htmlFor="senha">Senha</label>
                         </div>
+
 
                         {!isRegister && (
                             <div className={style.ml_check_row}>
