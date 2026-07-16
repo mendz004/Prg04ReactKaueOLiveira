@@ -1,4 +1,8 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
 import style from './dashboard.module.css';
+import '../../styles/buttons.css';
+import navbarStyles from '../components/navBar.module.css';
+import { Link } from 'react-router-dom';
 
 const summaryCards = [
   {
@@ -11,7 +15,7 @@ const summaryCards = [
     title: 'Receitas do Mês',
     value: 'R$ 8.240,00',
     subtitle: '+12% em relação ao mês passado',
-    color: '#4f9a7b'
+    color: '#4f9a7b)'
   },
   {
     title: 'Despesas do Mês',
@@ -84,6 +88,16 @@ const movements = [
   { icon: '💳', name: 'Pagamento de cartão', date: '08/07', value: '- R$ 520,00', type: 'expense' }
 ];
 
+const dashboardNavItems = [
+  { label: 'Receita', path: '/receita' },
+  { label: 'Despesa', path: '/despesa' },
+  { label: 'Conta', path: '/conta' },
+  { label: 'Cartao', path: '/cartao' },
+  { label: 'Objetivo', path: '/objetivo' },
+  { label: 'Orcamento', path: '/orcamento' },
+  { label: 'Relatorio', path: '/relatorio' }
+];
+
 function Dashboard() {
   const maxValue = Math.max(...monthData.flatMap((item) => [item.receitas, item.despesas]));
   const donutGradient = `conic-gradient(${categoryShare
@@ -99,13 +113,39 @@ function Dashboard() {
 
   return (
     <div className={style.dashboardPage}>
+      <nav className={`${navbarStyles.navbar} navbar navbar-expand-lg navbar-dark sticky-top mb-4`}>
+        <Link className={`navbar-brand ${navbarStyles.logo}`} to="/dashboard">
+          📊 Dashboard
+        </Link>
+
+        <button
+          className="navbar-toggler" type="button" data-bs-toggle="collapse" 
+          data-bs-target="#dashboardNav" aria-controls="dashboardNav" aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span className="navbar-toggler-icon"></span>
+        </button>
+
+        <div className="collapse navbar-collapse" id="dashboardNav">
+          <ul className={`navbar-nav ms-auto gap-1 py-2 py-lg-0 ${navbarStyles.list}`}>
+            {dashboardNavItems.map((item) => (
+              <li key={item.path} className="nav-item">
+                <Link className="nav-link" to={item.path}>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+
       <header className={style.dashboardHeader}>
         <div>
           <p className={style.kicker}>Painel financeiro</p>
           <h1>Dashboard</h1>
         </div>
 
-        <button type="button" className={style.headerButton}>
+        <button type="button" className="headerButton">
           + Nova transação
         </button>
       </header>

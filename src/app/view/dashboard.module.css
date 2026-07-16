@@ -31,24 +31,6 @@
   color: var(--cor-02);
 }
 
-.headerButton {
-  border: none;
-  border-radius: 12px;
-  padding: 12px 18px;
-  font-weight: 700;
-  background: var(--cor-02);
-  color: white;
-  cursor: pointer;
-  box-shadow: 0 12px 22px rgba(30, 41, 59, 0.18);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.headerButton:hover {
-  transform: translateY(-2px);
-  background: var(--cor-01);
-  box-shadow: 0 16px 28px rgba(79, 154, 123, 0.26);
-}
-
 .summaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
