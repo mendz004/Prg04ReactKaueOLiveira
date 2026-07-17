@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import App from './App';
 import Home from './app/view/Home';
 
 test('opens the login form for Acessar and the register form for Comece agora', async () => {
@@ -42,4 +43,11 @@ test('does not show monthly income field in the login form', async () => {
   await userEvent.click(screen.getByRole('button', { name: /acessar/i }));
 
   expect(screen.queryByPlaceholderText('2500.00')).not.toBeInTheDocument();
+});
+
+test('renders the credit card view at the /cartao route', () => {
+  window.history.pushState({}, '', '/cartao');
+  render(<App />);
+
+  expect(screen.getByRole('heading', { name: /cartões de crédito/i })).toBeInTheDocument();
 });

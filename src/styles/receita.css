@@ -63,6 +63,16 @@
   margin-bottom: 20px;
 }
 
+.summaryOrb {
+    position: absolute;
+    top: -74px;
+    right: 6%;
+    width: 180px;
+    height: 180px;
+    border: 32px solid rgba(124, 255, 218, .12);
+    border-radius: 50%;
+}
+
 .receita-summary-card-danger {
   background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
 }

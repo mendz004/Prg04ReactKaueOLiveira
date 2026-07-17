@@ -201,6 +201,7 @@ function Receita() {
           <p className="receita-summary-label">Total recebido</p>
           <p className="receita-summary-value">{formatCurrency(totalRecebido)}</p>
           <p className="receita-summary-foot">No período selecionado · {receitasFiltradas.length} entradas</p>
+          <div className= "summaryOrb"/>
         </section>
 
         <section className="receita-controls">

@@ -4,6 +4,10 @@ import Dashboard from './app/view/Dashboard';
 import Receita from './app/view/Receita';
 import Despesa from './app/view/Despesa';
 import Conta from './app/view/Conta';
+import Cartao from './app/view/Cartao';
+import Objetivo from './app/view/Objetivo';
+import Orcamento from './app/view/Orcamento';
+import Relatorio from './app/view/Relatorio';
 import Fotter from './app/components/Fotter';
 
 import {
@@ -11,21 +15,6 @@ import {
   Routes,
   Route
 } from 'react-router-dom';
-
-function PlaceholderView({ title }) {
-  return (
-    <div className="container py-5">
-      <div className="card shadow-sm border-0">
-        <div className="card-body">
-          <h2 className="mb-3">{title}</h2>
-          <p className="text-muted mb-0">
-            A view de {title.toLowerCase()} ainda está sendo organizada.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function App() {
   return (
@@ -63,22 +52,22 @@ function App() {
 
         <Route
           path="/cartao"
-          element={<PlaceholderView title="Cartão" />}
+          element={<Cartao />}
         />
 
         <Route
           path="/objetivo"
-          element={<PlaceholderView title="Objetivo" />}
+          element={<Objetivo />}
         />
 
         <Route
           path="/orcamento"
-          element={<PlaceholderView title="Orçamento" />}
+          element={<Orcamento />}
         />
 
         <Route
           path="/relatorio"
-          element={<PlaceholderView title="Relatório" />}
+          element={<Relatorio />}
         />
       </Routes>
 

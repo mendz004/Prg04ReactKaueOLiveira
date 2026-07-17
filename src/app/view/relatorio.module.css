@@ -1,0 +1,394 @@
+@import '../../styles/theme.css';
+
+.page {
+    min-height: 100vh;
+    padding: 24px 18px 60px;
+    background: linear-gradient(150deg, #f4f9f7, #fafcff);
+    color: var(--cor-02)
+}
+
+.shell {
+    max-width: 1180px;
+    margin: auto
+}
+
+.header,
+.filters,
+.kpis,
+.charts,
+.chartCard header,
+.donutContent,
+.legend li,
+.insights>div {
+    display: flex
+}
+
+.header {
+    align-items: center;
+    justify-content: space-between;
+    margin: 28px 0 21px
+}
+
+.header p,
+.insights header>p {
+    margin: 0 0 5px;
+    color: var(--cor-01);
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .12em
+}
+
+.header h1,
+.insights h2 {
+    margin: 0
+}
+
+.header small,
+.chartCard header p {
+    color: #64748b
+}
+
+.export {
+    padding: 11px 15px;
+    border: 1px solid #cde7dd;
+    border-radius: 12px;
+    background: #fff;
+    color: #168260;
+    font-weight: 800;
+    cursor: pointer
+}
+
+.filters {
+    align-items: end;
+    gap: 13px;
+    margin-bottom: 18px;
+    padding: 15px 18px;
+    border: 1px solid #e0ebe7;
+    border-radius: 17px;
+    background: #fff
+}
+
+.filters label {
+    display: grid;
+    gap: 6px;
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 700
+}
+
+.filters select {
+    min-width: 170px;
+    padding: 10px;
+    border: 1px solid #d9e5e1;
+    border-radius: 9px;
+    background: #fff;
+    font-weight: 700
+}
+
+.filters span {
+    margin-left: auto;
+    color: #718096;
+    font-size: .82rem
+}
+
+.kpis {
+    gap: 15px;
+    margin-bottom: 18px
+}
+
+.kpis article {
+    display: flex;
+    flex: 1;
+    gap: 13px;
+    padding: 19px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 18px #1e293b0b
+}
+
+.kpis article>span {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 1.4rem;
+    font-weight: 900
+}
+
+.kpis p,
+.kpis small {
+    display: block;
+    margin: 0;
+    color: #718096;
+    font-size: .8rem
+}
+
+.kpis strong {
+    display: block;
+    margin: 4px 0;
+    font-size: 1.35rem
+}
+
+.income>span {
+    background: #dcfce7;
+    color: #178b51
+}
+
+.income strong {
+    color: #178b51
+}
+
+.expense>span {
+    background: #fee2e2;
+    color: #dc2626
+}
+
+.expense strong {
+    color: #dc2626
+}
+
+.balance>span {
+    background: #dff6f2;
+    color: #147c73
+}
+
+.balance strong {
+    color: #147c73
+}
+
+.charts {
+    gap: 18px
+}
+
+.chartCard {
+    flex: 1;
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid #e0ebe7;
+    border-radius: 20px;
+    background: #fff
+}
+
+.chartCard header {
+    align-items: start;
+    justify-content: space-between
+}
+
+.chartCard h2 {
+    margin: 0;
+    font-size: 1.08rem
+}
+
+.chartCard header p {
+    margin: 5px 0
+}
+
+.donutContent {
+    align-items: center;
+    gap: 18px
+}
+
+.donutWrap {
+    width: 210px;
+    flex: none
+}
+
+.donutValue {
+    font-size: 12px;
+    font-weight: 800;
+    fill: #1e293b
+}
+
+.donutLabel,
+.axisText {
+    font-size: 7px;
+    fill: #64748b
+}
+
+.legend {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    list-style: none
+}
+
+.legend li {
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #edf2f0;
+    font-size: .82rem
+}
+
+.legend i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%
+}
+
+.legend span {
+    flex: 1
+}
+
+.legend small {
+    display: block;
+    color: #94a3b8
+}
+
+.legend b {
+    font-size: .78rem
+}
+
+.evolution {
+    width: 100%;
+    margin-top: 15px
+}
+
+.gridLine {
+    stroke: #e9efed;
+    stroke-width: 1
+}
+
+.expenseBar {
+    fill: #f59e0b99
+}
+
+.incomeLine {
+    stroke: #159d7a;
+    stroke-width: 3
+}
+
+.incomePoint {
+    fill: #159d7a
+}
+
+.chartKey {
+    font-size: .73rem;
+    color: #64748b
+}
+
+.chartKey i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin: 0 4px;
+    border-radius: 50%;
+    background: #159d7a
+}
+
+.chartKey i+i {
+    background: #f59e0b
+}
+
+.insights {
+    margin-top: 22px;
+    padding: 22px;
+    border-radius: 20px;
+    background: #153b3a;
+    color: #fff
+}
+
+.insights header>p {
+    color: #9ce8d2
+}
+
+.insights>div {
+    gap: 12px;
+    margin-top: 17px
+}
+
+.insights article {
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #ffffff1f;
+    border-radius: 13px;
+    background: #ffffff12
+}
+
+.insights article span {
+    font-size: 1.3rem
+}
+
+.insights article p {
+    margin: 0;
+    color: #d9eeea;
+    font-size: .86rem;
+    line-height: 1.5
+}
+
+.insights article b {
+    color: #fff
+}
+
+@media(max-width:800px) {
+
+    .filters,
+    .kpis,
+    .charts,
+    .insights>div {
+        flex-direction: column
+    }
+
+    .filters {
+        align-items: stretch
+    }
+
+    .filters span {
+        margin: 0
+    }
+
+    .charts .chartCard {
+        width: 100%
+    }
+
+    .header {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .export {
+        width: 100%
+    }
+
+    .donutContent {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .donutWrap {
+        width: 180px
+    }
+
+    .kpis article {
+        width: 100%
+    }
+}
+
+/* Mesmo cabeçalho e card de resumo usados nas outras views. */
+.header h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -.06em;
+}
+
+.header > div > p { text-transform: uppercase; }
+
+.filters {
+    border-radius: 20px;
+    box-shadow: 0 10px 26px rgba(15,23,42,.06);
+}
+
+.kpis article {
+    border: 1px solid #e7eceb;
+    border-radius: 20px;
+    box-shadow: 0 8px 18px rgba(30,41,59,.05);
+    transition: transform .2s, box-shadow .2s;
+}
+
+.kpis article:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 25px rgba(30,41,59,.11);
+}

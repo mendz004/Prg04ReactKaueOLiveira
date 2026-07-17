@@ -19,6 +19,7 @@ const initialDespesas = [
     id: 2,
     descricao: 'Combustível',
     data: '2026-07-10',
+    
     categoria: 'TRANSPORTE',
     origem: 'Cartão Nubank',
     valor: 85,
