@@ -453,3 +453,84 @@
     .list { grid-template-columns: 1fr; }
     .health::after { display: none; }
 }
+
+/* Estrutura usada pela tela Orcamento.js. */
+.orcamentoPage {
+    min-height: 100vh;
+    padding: 24px 4vw 60px;
+    background: #f4f9f7;
+    color: var(--cor-02);
+}
+
+.banner {
+    max-width: 1120px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 24px;
+    background: linear-gradient(135deg, var(--cor-02) 0%, var(--cor-01) 100%);
+    color: #fff;
+    box-shadow: 0 20px 35px rgba(30, 41, 59, .18);
+}
+
+.bannerTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 20px 28px;
+    border-bottom: 1px solid rgba(255, 255, 255, .18);
+}
+
+.titleGroup, .categoryMeta, .cardHeader, .cardFooter, .values {
+    display: flex;
+    align-items: center;
+}
+
+.titleGroup { gap: 11px; }
+.titleGroup h2 { margin: 0; font-size: 1.45rem; font-weight: 800; }
+.titleGroup .icon { width: auto; height: auto; background: transparent; font-size: 1.6rem; }
+
+.navLinks { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 14px; }
+.navLink { color: rgba(255,255,255,.85); font-size: .85rem; font-weight: 700; text-decoration: none; }
+.navLink:hover { color: #fff; text-decoration: underline; }
+
+.bannerContent { display: flex; align-items: center; gap: 28px; padding: 30px 34px; }
+.statBlock h1 { margin: 0; font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 800; }
+.statBlock span, .infoBlock p { color: #c9e9e6; }
+.divider { width: 1px; height: 72px; background: rgba(255,255,255,.25); }
+.infoBlock h3 { margin: 0 0 8px; font-size: 1.35rem; }
+.infoBlock h3 small { color: #c9e9e6; font-size: .9rem; }
+.infoBlock p { margin: 0; }
+
+.sectionHeader, .cardsGrid, .loadingText { max-width: 1120px; margin-left: auto; margin-right: auto; }
+.sectionHeader { margin-top: 32px; margin-bottom: 16px; }
+.sectionHeader h2 { margin: 0 0 5px; font-weight: 800; }
+.sectionHeader p { margin: 0; color: #64748b; }
+.loadingText { padding: 30px 0; color: #64748b; }
+
+.cardsGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.cardsGrid .card { display: block; min-height: 205px; padding: 23px; border: 1px solid #e2ebe8; border-radius: 20px; background: #fff; box-shadow: 0 8px 18px rgba(30,41,59,.05); }
+.cardsGrid .card:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(30,41,59,.11); transition: transform .2s, box-shadow .2s; }
+.cardHeader { justify-content: space-between; }
+.categoryMeta { gap: 12px; }
+.categoryMeta h3 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+.iconCircle { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: #e9f8f2; font-size: 1.4rem; }
+.optionsBtn { border: 0; background: transparent; color: #64748b; font-size: 1.25rem; font-weight: 900; letter-spacing: 1px; }
+.cardSubtext { margin: 20px 0 25px; color: #64748b; font-size: .9rem; }
+.cardFooter { justify-content: space-between; margin-bottom: 10px; }
+.cardsGrid .values { gap: 5px; }
+.cardsGrid .values strong { margin: 0; }
+.cardsGrid .values span { color: #94a3b8; font-size: .8rem; }
+.percentage { color: #168260; font-weight: 800; }
+.progressTrack { height: 11px; overflow: hidden; border-radius: 99px; background: #e4efeb; }
+.progressBar { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #16ad84, #5eead4); }
+
+@media (max-width: 760px) {
+    .orcamentoPage { padding: 12px; }
+    .bannerTop, .bannerContent { align-items: flex-start; flex-direction: column; }
+    .bannerTop { padding: 18px; }
+    .navLinks { justify-content: flex-start; gap: 9px 13px; }
+    .bannerContent { gap: 16px; padding: 24px; }
+    .divider { width: 100%; height: 1px; }
+    .cardsGrid { grid-template-columns: 1fr; }
+}

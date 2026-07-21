@@ -1,45 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import '../../styles/receita.css';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
 
-const initialDespesas = [
-  {
-    id: 1,
-    descricao: 'Mercado da semana',
-    data: '2026-07-12',
-    categoria: 'ALIMENTAÇÃO',
-    origem: 'Itaú',
-    valor: 150,
-    icone: '🛒',
-    paga: true
-  },
-  {
-    id: 2,
-    descricao: 'Combustível',
-    data: '2026-07-10',
-    
-    categoria: 'TRANSPORTE',
-    origem: 'Cartão Nubank',
-    valor: 85,
-    icone: '⛽',
-    paga: false
-  },
-  {
-    id: 3,
-    descricao: 'Consulta médica',
-    data: '2026-07-04',
-    categoria: 'SAÚDE',
-    origem: 'Caixa',
-    valor: 240,
-    icone: '🩺',
-    paga: true
-  }
-];
+const categorias = ['ALIMENTAÇÃO', 'TRANSPORTE', 'SAUDE', 'LAZER', 'EDUCACAO', 'MORADIA', 'INVESTIMENTOS', 'OUTROS'];
 
-const categorias = ['ALIMENTAÇÃO', 'TRANSPORTE', 'SAÚDE', 'LAZER', 'EDUCAÇÃO', 'MORADIA', 'INVESTIMENTOS', 'OUTROS'];
-const origens = ['Itaú', 'Nubank', 'Caixa', 'Inter', 'Cartão Nubank', 'Cartão Itaú'];
 const dashboardNavItems = [
   { label: 'Dashboard', path: '/dashboard' },
   { label: 'Receita', path: '/receita' },
@@ -54,74 +21,191 @@ function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(value);
+  }).format(value || 0);
 }
 
-function formatDate(dateString) {
-  const date = new Date(dateString + 'T00:00:00');
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date);
-}
+const formatDate = (dateProp) => {
+  if (!dateProp) return "--/--/----";
+  if (Array.isArray(dateProp)) {
+    const [year, month, day] = dateProp;
+    const dia = String(day).padStart(2, '0');
+    const mes = String(month).padStart(2, '0');
+    return `${dia}/${mes}/${year}`;
+  }
+  const d = new Date(dateProp);
+  if (isNaN(d.getTime())) {
+    const partes = String(dateProp).split('T')[0].split('-');
+    if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    return "--/--/----";
+  }
+  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+};
+
+// Ícones dinâmicos por categoria
+const getCategoryIcon = (categoria) => {
+  switch (categoria?.toUpperCase()) {
+    case 'TRANSPORTE': return '🚗';
+    case 'SAUDE': return '🩺';
+    case 'LAZER': return '🎉';
+    case 'EDUCACAO':
+    case 'EDUCACAO': return '📚';
+    case 'MORADIA': return '🏠';
+    case 'INVESTIMENTOS': return '📈';
+    case 'ALIMENTACAO': return '🛒';
+    default: return '💸';
+  }
+};
 
 function Despesa() {
-  const [despesas, setDespesas] = useState(initialDespesas);
+  const [despesas, setDespesas] = useState([]);
+  const [contas, setContas] = useState([]);
+  const [cartoes, setCartoes] = useState([]); // Hook movido para dentro do componente corretamente
+
   const [search, setSearch] = useState('');
   const [mesSelecionado, setMesSelecionado] = useState('2026-07');
   const [showModal, setShowModal] = useState(false);
   const [showAlert] = useState(true);
+
   const [form, setForm] = useState({
     descricao: '',
     data: new Date().toISOString().slice(0, 10),
+    formaPagamento: 'PIX',
     categoria: 'ALIMENTAÇÃO',
-    origem: 'Itaú',
+    origem: '',
     valor: ''
   });
+
   const [editingId, setEditingId] = useState(null);
+
+  // 1. BUSCAR DADOS DO BACK-END
+  const fetchDespesas = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/despesas');
+      setDespesas(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar despesas do back-end", error);
+    }
+  };
+
+  const fetchContas = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/contas');
+      setContas(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar contas do back-end", error);
+    }
+  };
+
+  const fetchCartoes = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/cartoes');
+      setCartoes(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar cartões do back-end", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDespesas();
+    fetchContas();
+    fetchCartoes(); // Busca os cartões ao carregar a página
+  }, []);
+
+
 
   const despesasFiltradas = useMemo(() => {
     return despesas.filter((item) => {
-      const matchesMonth = item.data.startsWith(mesSelecionado);
-      const matchesSearch = item.descricao.toLowerCase().includes(search.toLowerCase());
+      if (!item.data) return false;
+
+      let ano = '';
+      let mes = '';
+
+      if (Array.isArray(item.data)) {
+        // Se o Java mandar como Array: [2026, 7, 20]
+        ano = item.data[0];
+        mes = String(item.data[1]).padStart(2, '0');
+      } else {
+        const dateStr = String(item.data);
+
+        if (dateStr.includes('/')) {
+          // Se o Java mandar formato BR: "20/07/2026"
+          const partes = dateStr.split(' ')[0].split('/');
+          if (partes.length >= 3) {
+            ano = partes[2];
+            mes = partes[1];
+          }
+        } else if (dateStr.includes('-')) {
+          // Se o Java mandar ISO: "2026-07-20T00:00:00"
+          const partes = dateStr.split('T')[0].split('-');
+          if (partes.length >= 3) {
+            ano = partes[0];
+            mes = partes[1];
+          }
+        }
+      }
+
+      const itemMonth = `${ano}-${mes}`;
+      const matchesMonth = itemMonth === mesSelecionado;
+      const matchesSearch = item.descricao?.toLowerCase().includes(search.toLowerCase());
+
       return matchesMonth && matchesSearch;
     });
   }, [despesas, search, mesSelecionado]);
 
   const totalGasto = useMemo(() => {
-    return despesasFiltradas.reduce((sum, item) => sum + item.valor, 0);
+    return despesasFiltradas.reduce((sum, item) => sum + Number(item.valor || 0), 0);
   }, [despesasFiltradas]);
 
-  const handleSubmit = (event) => {
+  // 2. CADASTRAR OU ATUALIZAR DESPESA
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.descricao.trim() || !form.valor) {
-      return;
+    if (!form.descricao.trim() || !form.valor) return;
+
+    // Tratamento Inteligente da Forma de Pagamento
+    let formaPagamentoFinal = form.formaPagamento;
+    let cartaoIdFinal = null;
+
+    if (form.formaPagamento.startsWith('CARTAO_')) {
+      formaPagamentoFinal = 'CARTAO_CREDITO'; // Nome que o seu backend espera
+      cartaoIdFinal = Number(form.formaPagamento.replace('CARTAO_', ''));
     }
 
     const payload = {
-      id: editingId ?? Date.now(),
       descricao: form.descricao.trim(),
-      data: form.data,
+      data: `${form.data}T00:00:00`,
+      formaPagamento: formaPagamentoFinal,
       categoria: form.categoria,
-      origem: form.origem,
+      contaId: Number(form.origem),
       valor: Number(form.valor),
-      icone: form.categoria === 'TRANSPORTE' ? '🚗' : form.categoria === 'SAÚDE' ? '🩺' : form.categoria === 'LAZER' ? '🎉' : form.categoria === 'EDUCAÇÃO' ? '📚' : form.categoria === 'MORADIA' ? '🏠' : form.categoria === 'INVESTIMENTOS' ? '📈' : '🛒',
-      paga: true
+      cartaoId: cartaoIdFinal,
+      efetivada: true
     };
 
-    if (editingId) {
-      setDespesas((prev) => prev.map((item) => (item.id === editingId ? payload : item)));
-    } else {
-      setDespesas((prev) => [payload, ...prev]);
-    }
+  
 
-    setShowModal(false);
-    setEditingId(null);
-    setForm({
-      descricao: '',
-      data: new Date().toISOString().slice(0, 10),
-      categoria: 'ALIMENTAÇÃO',
-      origem: 'Itaú',
-      valor: ''
-    });
+    try {
+      if (editingId) {
+        await axios.put(`http://localhost:8080/despesas/${editingId}`, payload);
+      } else {
+        await axios.post('http://localhost:8080/despesas', payload);
+      }
+
+      fetchDespesas();
+      setShowModal(false);
+      setEditingId(null);
+      setForm({
+        descricao: '',
+        data: new Date().toISOString().slice(0, 10),
+        formaPagamento: 'PIX',
+        categoria: 'ALIMENTACAO',
+        origem: 'Itau',
+        valor: ''
+      });
+    } catch (error) {
+      console.error("Erro ao salvar despesa", error);
+      alert("Houve um erro ao salvar a despesa. Verifique o console.");
+    }
   };
 
   const openCreate = () => {
@@ -129,8 +213,9 @@ function Despesa() {
     setForm({
       descricao: '',
       data: new Date().toISOString().slice(0, 10),
+      formaPagamento: 'PIX',
       categoria: 'ALIMENTAÇÃO',
-      origem: 'Itaú',
+      origem: '', // <-- DEIXE VAZIO AQUI
       valor: ''
     });
     setShowModal(true);
@@ -138,9 +223,18 @@ function Despesa() {
 
   const openEdit = (item) => {
     setEditingId(item.id);
+
+    let formattedDate = new Date().toISOString().slice(0, 10);
+    if (Array.isArray(item.data)) {
+      formattedDate = `${item.data[0]}-${String(item.data[1]).padStart(2, '0')}-${String(item.data[2]).padStart(2, '0')}`;
+    } else if (item.data) {
+      formattedDate = String(item.data).split('T')[0];
+    }
+
     setForm({
       descricao: item.descricao,
-      data: item.data,
+      data: formattedDate,
+      formaPagamento: item.formaPagamento || 'PIX',
       categoria: item.categoria,
       origem: item.origem,
       valor: String(item.valor)
@@ -148,11 +242,17 @@ function Despesa() {
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    setDespesas((prev) => prev.filter((item) => item.id !== id));
+  // 3. EXCLUIR DESPESA
+  const handleDelete = async (id) => {
+    if (window.confirm("Deseja realmente excluir esta despesa?")) {
+      try {
+        await axios.delete(`http://localhost:8080/despesas/${id}`);
+        fetchDespesas();
+      } catch (error) {
+        console.error("Erro ao excluir", error);
+      }
+    }
   };
-
-  
 
   return (
     <div className="receita-page">
@@ -186,11 +286,6 @@ function Despesa() {
           </div>
         </nav>
 
-        {showAlert && (
-          <div className="receita-alert">
-            Atenção: Você atingiu 100% do orçamento desta categoria.
-          </div>
-        )}
 
         <header className="receita-header">
           <div>
@@ -231,20 +326,19 @@ function Despesa() {
             despesasFiltradas.map((item) => (
               <article key={item.id} className="receita-item">
                 <div className="receita-item-main">
-                  <div className="receita-badge" aria-hidden="true">{item.icone}</div>
+                  <div className="receita-badge" aria-hidden="true">{getCategoryIcon(item.categoria)}</div>
                   <div className="receita-info">
                     <div className="receita-title-row">
                       <h3>{item.descricao}</h3>
                       <span className="receita-value receita-value-danger">{formatCurrency(item.valor)}</span>
                     </div>
                     <div className="receita-meta">
-                      {formatDate(item.data)} · {item.categoria} · {item.origem}
+                      {formatDate(item.data)} · {item.categoria} · {item.conta ? `Conta: ${item.conta.nomeConta}` : item.cartao ? `Cartão: ${item.cartao.nome}` : 'Sem origem'}
                     </div>
                   </div>
                 </div>
 
                 <div className="receita-actions">
-                 
                   <button className="receita-action-btn" onClick={() => openEdit(item)} aria-label={`Editar ${item.descricao}`}>
                     ✏️
                   </button>
@@ -305,6 +399,26 @@ function Despesa() {
                 />
               </div>
 
+              {/* SELECT MISTO DE FORMAS DE PAGAMENTO */}
+              <div className="receita-field">
+                <label htmlFor="formaPagamento">Forma de pagamento</label>
+                <select
+                  id="formaPagamento"
+                  value={form.formaPagamento}
+                  onChange={(event) => setForm((prev) => ({ ...prev, formaPagamento: event.target.value }))}
+                >
+                  <option value="PIX">PIX</option>
+                  <option value="DINHEIRO">DINHEIRO</option>
+                  <option value="BOLETO">BOLETO</option>
+
+                  {cartoes.map((cartao) => (
+                    <option key={cartao.id} value={`CARTAO_${cartao.id}`}>
+                      Cartão: {cartao.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="receita-field">
                 <label htmlFor="categoria">Categoria</label>
                 <select id="categoria" value={form.categoria} onChange={(event) => setForm((prev) => ({ ...prev, categoria: event.target.value }))}>
@@ -315,11 +429,20 @@ function Despesa() {
               </div>
 
               <div className="receita-field">
-                <label htmlFor="origem">Origem do Pagamento</label>
-                <select id="origem" value={form.origem} onChange={(event) => setForm((prev) => ({ ...prev, origem: event.target.value }))}>
-                  {origens.map((origem) => (
-                    <option key={origem} value={origem}>{origem}</option>
+                <label htmlFor="origem">Origem do Pagamento (Conta)</label>
+                <select
+                  id="origem"
+                  value={form.origem}
+                  onChange={(event) => setForm((prev) => ({ ...prev, origem: event.target.value }))}
+                >
+                  <option value="" disabled>Selecione uma conta...</option>
+
+                  {contas.map((conta) => (
+                    <option key={conta.id} value={conta.id}>
+                      {conta.nomeConta}
+                    </option>
                   ))}
+
                 </select>
               </div>
 
@@ -329,10 +452,11 @@ function Despesa() {
               </div>
             </form>
           </div>
-        </div>
-      )}
-    </div>
+        </div >
+      )
+      }
+    </div >
   );
-} 
+}
 
 export default Despesa;

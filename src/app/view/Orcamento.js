@@ -1,298 +1,192 @@
-import { useMemo, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import { Link } from 'react-router-dom';
-import '../../styles/buttons.css';
-import navbarStyles from '../components/navBar.module.css';
-import styles from './orcamento.module.css';
+import style from './orcamento.module.css';
+import { api } from '../../api/Api';
 
-const icon = {
-  MORADIA: '🏠',
-  ALIMENTAÇÃO: '🛒',
+const navItems = [
+  { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Receita', path: '/receita' },
+  { label: 'Despesa', path: '/despesa' },
+  { label: 'Conta', path: '/conta' },
+  { label: 'Cartão', path: '/cartao' },
+  { label: 'Objetivo', path: '/objetivo' },
+  { label: 'Orçamento', path: '/orcamento' },
+  { label: 'Relatório', path: '/relatorio' }
+];
+
+// Ícones padrão por categoria (caso o orçamento não possua)
+const categoryIcons = {
   TRANSPORTE: '🚗',
-  SAÚDE: '🩺',
-  EDUCAÇÃO: '📚',
   LAZER: '🎉',
-  INVESTIMENTOS: '📈',
-  OUTROS: '✨'
+  ALIMENTACAO: '🥗',
+  SAUDE: '💊',
+  EDUCACAO: '📚',
+  OUTROS: '🏷️'
 };
 
-const cats = Object.keys(icon);
-const initial = [
-  { id: 1, categoria: 'ALIMENTAÇÃO', limite: 1000, gasto: 680, mes: '07', ano: '2026' },
-  { id: 2, categoria: 'TRANSPORTE', limite: 500, gasto: 420, mes: '07', ano: '2026' },
-  { id: 3, categoria: 'LAZER', limite: 300, gasto: 370, mes: '07', ano: '2026' },
-  { id: 4, categoria: 'SAÚDE', limite: 450, gasto: 0, mes: '07', ano: '2026' }
-];
+function Orcamento() {
+  const [orcamentos, setOrcamentos] = useState([]);
+  const [despesas, setDespesas] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const nav = [
-  ['Dashboard', '/dashboard'],
-  ['Receita', '/receita'],
-  ['Despesa', '/despesa'],
-  ['Conta', '/conta'],
-  ['Cartão', '/cartao'],
-  ['Objetivo', '/objetivo'],
-  ['Orçamento', '/orcamento'],
-  ['Relatório', '/relatorio']
-];
+  // Busca Orçamentos e Despesas da API Spring Boot
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [resOrcamentos, resDespesas] = await Promise.allSettled([
+          api.get('/orcamentos'),
+          api.get('/despesas')
+        ]);
 
-const money = (value) => new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL'
-}).format(value); 
-
-const fresh = () => ({
-  categoria: 'ALIMENTAÇÃO',
-  limite: '',
-  gasto: '',
-  mes: '07',
-  ano: '2026'
-});
-
-export default function Orcamento() {
-  const [items, setItems] = useState(initial);
-  const [period, setPeriod] = useState('07-2026');
-  const [form, setForm] = useState(fresh);
-  const [modal, setModal] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [menu, setMenu] = useState(null);
-  const [error, setError] = useState('');
-
-  const [mes, ano] = period.split('-');
-  const budgets = useMemo(
-    () => items.filter((item) => item.mes === mes && item.ano === ano),
-    [items, mes, ano]
-  );
-  const total = budgets.reduce((sum, item) => sum + item.limite, 0);
-  const spent = budgets.reduce((sum, item) => sum + item.gasto, 0);
-  const pct = total ? Math.round((spent / total) * 100) : 0;
-  const exceeded = budgets.filter((item) => item.gasto >= item.limite);
-
-  const open = () => {
-    setEditId(null);
-    setError('');
-    setForm({ ...fresh(), mes, ano });
-    setModal(true);
-  };
-
-  const edit = (item) => {
-    setEditId(item.id);
-    setError('');
-    setForm({
-      ...item,
-      limite: String(item.limite),
-      gasto: String(item.gasto)
-    });
-    setMenu(null);
-    setModal(true);
-  };
-
-  const save = (event) => {
-    event.preventDefault();
-
-    if (items.some((item) => (
-      item.id !== editId
-      && item.categoria === form.categoria
-      && item.mes === form.mes
-      && item.ano === form.ano
-    ))) {
-      setError('Esta categoria já possui um orçamento neste mês.');
-      return;
-    }
-
-    const next = {
-      ...form,
-      id: editId || Date.now(),
-      limite: Number(form.limite),
-      gasto: Number(form.gasto || 0)
+        if (resOrcamentos.status === 'fulfilled') {
+          setOrcamentos(Array.isArray(resOrcamentos.value.data) ? resOrcamentos.value.data : []);
+        }
+        if (resDespesas.status === 'fulfilled') {
+          setDespesas(Array.isArray(resDespesas.value.data) ? resDespesas.value.data : []);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar orçamentos e despesas:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setItems((all) => (
-      editId
-        ? all.map((item) => (item.id === editId ? next : item))
-        : [...all, next]
-    ));
-    setModal(false);
-  };
+    fetchData();
+  }, []);
+
+  // --- CÁLCULO DINÂMICO DE GASTOS POR CATEGORIA ---
+  const orcamentosComGastos = useMemo(() => {
+    return orcamentos.map((orc) => {
+      const catOrcamento = (orc.categoria || orc.nome || '').toUpperCase();
+
+      // Soma todas as despesas que pertencem a esta mesma categoria
+      const gastoTotal = despesas
+        .filter((d) => {
+          const catDespesa = (d.categoria || d.origem || '').toUpperCase();
+          return catDespesa === catOrcamento;
+        })
+        .reduce((sum, d) => sum + Number(d.valor || 0), 0);
+
+      const limite = Number(orc.limite || orc.valorLimite || 0);
+      const percent = limite > 0 ? Math.min(100, Math.round((gastoTotal / limite) * 100)) : 0;
+      const disponivel = limite - gastoTotal;
+      const icon = categoryIcons[catOrcamento] || '📊';
+
+      return {
+        ...orc,
+        categoriaFormatted: catOrcamento,
+        gasto: gastoTotal,
+        limite,
+        percent,
+        disponivel,
+        icon
+      };
+    });
+  }, [orcamentos, despesas]);
+
+  // Totais do Topo/Banner
+  const totalGasto = useMemo(() => {
+    return orcamentosComGastos.reduce((acc, item) => acc + item.gasto, 0);
+  }, [orcamentosComGastos]);
+
+  const totalLimite = useMemo(() => {
+    return orcamentosComGastos.reduce((acc, item) => acc + item.limite, 0);
+  }, [orcamentosComGastos]);
+
+  const totalPercent = totalLimite > 0 ? Math.round((totalGasto / totalLimite) * 100) : 0;
+  const totalDisponivel = totalLimite - totalGasto;
 
   return (
-    <main className={styles.page}>
-      <div className={styles.shell}>
-        <nav className={`${navbarStyles.navbar} navbar navbar-expand-lg navbar-dark sticky-top mb-4`}>
-          <Link className={`navbar-brand ${navbarStyles.logo}`} to="/orcamento">
-            📊 Orçamentos
-          </Link>
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#budgetNav">
-            <span className="navbar-toggler-icon" />
-          </button>
-          <div className="collapse navbar-collapse" id="budgetNav">
-            <ul className={`navbar-nav ms-auto gap-1 py-2 py-lg-0 ${navbarStyles.list}`}>
-              {nav.map(([label, path]) => (
-                <li key={path} className="nav-item">
-                  <Link className="nav-link" to={path}>{label}</Link>
-                </li>
-              ))}
-            </ul>
+    <div className={style.orcamentoPage || style.container}>
+      {/* BANNER / HEADER VERDE */}
+      <div className={style.banner || style.headerBanner}>
+        <div className={style.bannerTop || style.navRow}>
+          <div className={style.titleGroup || style.logo}>
+            <span className={style.icon}>📊</span>
+            <h2>Orçamentos</h2>
           </div>
-        </nav>
 
-        <header className={styles.header}>
-          <div>
-            <p>PLANEJE COM CLAREZA</p>
-            <h1>Meus Orçamentos</h1>
-            <small>Controle seus limites e mantenha os gastos em dia.</small>
-          </div>
-          <div>
-            <select value={period} onChange={(event) => setPeriod(event.target.value)}>
-              <option value="07-2026">Julho 2026</option>
-              <option value="06-2026">Junho 2026</option>
-              <option value="05-2026">Maio 2026</option>
-            </select>
-            <button className="headerButton" onClick={open}>+ Novo Orçamento</button>
-          </div>
-        </header>
+          <nav className={style.navLinks || style.navbar}>
+            {navItems.map((item) => (
+              <Link key={item.path} to={item.path} className={style.navLink}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
 
-        {!!exceeded.length && (
-          <aside className={styles.alert}>
-            ⚠️
-            <div>
-              <strong>
-                {exceeded.length === 1
-                  ? `Atenção: você ultrapassou seu orçamento de ${exceeded[0].categoria.toLowerCase()}!`
-                  : `Atenção: ${exceeded.length} categorias ultrapassaram o orçamento.`}
-              </strong>
-              <small>Revise seus gastos para retomar o controle.</small>
-            </div>
-          </aside>
-        )}
-
-        <section className={styles.health}>
-          <div className={styles.donut} style={{ '--p': `${Math.min(pct, 100) * 3.6}deg` }}>
-            <div>
-              <b>{pct}%</b>
-              <small>consumido</small>
-            </div>
+        <div className={style.bannerContent || style.bannerBody}>
+          <div className={style.statBlock}>
+            <h1>{totalPercent}%</h1>
+            <span>consumido</span>
           </div>
-          <div className={styles.healthText}>
-            <p>SAÚDE DO MÊS</p>
-            <h2>{money(spent)} <span>de {money(total)}</span></h2>
-            <small>
-              {total >= spent
-                ? `Você ainda tem ${money(total - spent)} disponível.`
-                : `Você ultrapassou o planejado em ${money(spent - total)}.`}
-            </small>
-            <i style={{ width: `${Math.min(pct, 100)}%` }} />
-          </div>
-          <div className={styles.stats}>
-            <span><b>{budgets.length}</b> categorias</span>
-            <span><b>{exceeded.length}</b> em alerta</span>
-          </div>
-        </section>
 
-        <section className={styles.listHead}>
-          <div>
-            <h2>Limites por categoria</h2>
-            <small>Acompanhe seus gastos em tempo real.</small>
+          <div className={style.divider} />
+
+          <div className={style.infoBlock}>
+            <h3>
+              R$ {totalGasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <small> de R$ {totalLimite.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</small>
+            </h3>
+            <p>
+              {totalDisponivel >= 0
+                ? `Você ainda tem R$ ${totalDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} disponível.`
+                : `Você ultrapassou em R$ ${Math.abs(totalDisponivel).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} o limite!`
+              }
+            </p>
           </div>
-        </section>
-
-        <section className={styles.list}>
-          {budgets.length ? budgets.map((item) => {
-            const progress = Math.round((item.gasto / item.limite) * 100);
-            const state = progress >= 100 ? 'danger' : progress > 70 ? 'warning' : 'safe';
-            const left = item.limite - item.gasto;
-
-            return (
-              <article className={styles.card} key={item.id}>
-                <div className={styles.icon}>{icon[item.categoria]}</div>
-                <div className={styles.main}>
-                  <div className={styles.cardTop}>
-                    <div>
-                      <h3>{item.categoria}</h3>
-                      <small>
-                        {!item.gasto
-                          ? 'Você ainda não gastou nada aqui. ✨'
-                          : left >= 0 ? `Restam ${money(left)}` : `Você estourou ${money(-left)}`}
-                      </small>
-                    </div>
-                    <div className={styles.menuWrap}>
-                      <button onClick={() => setMenu(menu === item.id ? null : item.id)}>•••</button>
-                      {menu === item.id && (
-                        <div className={styles.menu}>
-                          <button onClick={() => edit(item)}>Editar</button>
-                          <button onClick={() => { setItems((all) => all.filter((budget) => budget.id !== item.id)); setMenu(null); }}>
-                            Excluir orçamento
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className={styles.values}>
-                    <b>{money(item.gasto)}</b>
-                    <span>de {money(item.limite)}</span>
-                    <strong className={styles[state]}>{progress}%</strong>
-                  </div>
-                  <div className={`${styles.track} ${styles[state]}`}>
-                    <i style={{ width: `${Math.min(progress, 100)}%` }} />
-                  </div>
-                </div>
-              </article>
-            );
-          }) : (
-            <div className={styles.empty}>
-              🎯
-              <h3>Nenhum orçamento neste período</h3>
-              <p>Defina um limite para começar a controlar seus gastos.</p>
-              <button className="headerButton" onClick={open}>+ Definir limite</button>
-            </div>
-          )}
-        </section>
+        </div>
       </div>
 
-      {modal && (
-        <div className={styles.overlay} role="dialog" aria-modal="true">
-          <form className={styles.modal} onSubmit={save}>
-            <header>
-              <div>
-                <p>PLANEJAMENTO MENSAL</p>
-                <h2>{editId ? 'Editar limite' : 'Novo orçamento'}</h2>
+      {/* TÍTULO DA SEÇÃO */}
+      <div className={style.sectionHeader}>
+        <h2>Limites por categoria</h2>
+        <p>Acompanhe seus gastos em tempo real.</p>
+      </div>
+
+      {/* LISTA DE CARDS POR CATEGORIA */}
+      {loading ? (
+        <p className={style.loadingText}>Carregando orçamentos...</p>
+      ) : (
+        <div className={style.cardsGrid || style.grid}>
+          {orcamentosComGastos.map((item) => (
+            <div key={item.id || item.categoriaFormatted} className={style.card || style.categoryCard}>
+              <div className={style.cardHeader}>
+                <div className={style.categoryMeta}>
+                  <div className={style.iconCircle}>{item.icon}</div>
+                  <h3>{item.categoriaFormatted}</h3>
+                </div>
+                <button type="button" className={style.optionsBtn}>•••</button>
               </div>
-              <button type="button" onClick={() => setModal(false)}>×</button>
-            </header>
-            {error && <aside>{error}</aside>}
-            <label>
-              Categoria
-              <select value={form.categoria} onChange={(event) => setForm({ ...form, categoria: event.target.value })}>
-                {cats.map((category) => <option key={category}>{category}</option>)}
-              </select>
-            </label>
-            <div className={styles.formRow}>
-              <label>
-                Valor limite (R$)
-                <input type="number" min="1" step="0.01" value={form.limite} onChange={(event) => setForm({ ...form, limite: event.target.value })} required />
-              </label>
-              <label>
-                Valor gasto (R$)
-                <input type="number" min="0" step="0.01" value={form.gasto} onChange={(event) => setForm({ ...form, gasto: event.target.value })} />
-              </label>
+
+              <p className={style.cardSubtext}>
+                {item.gasto === 0
+                  ? 'Você ainda não gastou nada aqui. ✨'
+                  : `Gasto atual: R$ ${item.gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                }
+              </p>
+
+              <div className={style.cardFooter}>
+                <div className={style.values}>
+                  <strong>R$ {item.gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                  <span> de R$ {item.limite.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <span className={style.percentage}>{item.percent}%</span>
+              </div>
+
+              <div className={style.progressTrack}>
+                <div
+                  className={style.progressBar}
+                  style={{ width: `${item.percent}%` }}
+                />
+              </div>
             </div>
-            <div className={styles.formRow}>
-              <label>
-                Mês
-                <select value={form.mes} onChange={(event) => setForm({ ...form, mes: event.target.value })}>
-                  {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((month) => <option key={month}>{month}</option>)}
-                </select>
-              </label>
-              <label>
-                Ano
-                <input type="number" min="2020" value={form.ano} onChange={(event) => setForm({ ...form, ano: event.target.value })} />
-              </label>
-            </div>
-            <footer>
-              <button type="button" onClick={() => setModal(false)}>Cancelar</button>
-              <button className="headerButton">Salvar orçamento</button>
-            </footer>
-          </form>
+          ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }
+
+export default Orcamento;

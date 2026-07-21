@@ -1,16 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
 import styles from './objetivo.module.css';
 
-const initialGoals = [
-  { id: 1, nome: 'Intercâmbio 2026', icone: '✈️', valorAlvo: 20000, valorAtual: 5000, dataPrevista: '2027-03-17', status: 'EM_ANDAMENTO' },
-  { id: 2, nome: 'Meu carro novo', icone: '🚗', valorAlvo: 45000, valorAtual: 31500, dataPrevista: '2027-01-17', status: 'EM_ANDAMENTO' },
-  { id: 3, nome: 'Reserva de emergência', icone: '🛟', valorAlvo: 12000, valorAtual: 12000, dataPrevista: '2026-06-01', status: 'CONCLUIDO' }
-];
+const API_OBJETIVO_URL = 'http://localhost:8080/objetivos';
+const API_CONTA_URL = 'http://localhost:8080/contas';
 
-const accounts = ['Conta Itaú', 'Conta Nubank', 'Carteira'];
 const emojis = ['🎯', '✈️', '🚗', '🏠', '🎓', '💍', '🛟', '🎮'];
 const navItems = [
   { label: 'Dashboard', path: '/dashboard' },
@@ -25,7 +22,7 @@ const navItems = [
 const currency = (value) => new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL'
-}).format(value);
+}).format(value || 0);
 
 const emptyForm = () => ({
   nome: '',
@@ -36,36 +33,78 @@ const emptyForm = () => ({
   status: 'EM_ANDAMENTO'
 });
 
+// Helper para converter qualquer formato de data retornado pelo Java em Date válido
+function parseJavaDate(dateVal) {
+  if (!dateVal) return new Date();
+  if (Array.isArray(dateVal)) {
+    return new Date(dateVal[0], dateVal[1] - 1, dateVal[2]);
+  }
+  return new Date(`${String(dateVal).split('T')[0]}T12:00:00`);
+}
+
 function relativeDate(date) {
-  const months = Math.round((new Date(`${date}T12:00:00`) - new Date()) / (1000 * 60 * 60 * 24 * 30.44));
+  const targetDate = parseJavaDate(date);
+  const now = new Date();
+  const months = Math.round((targetDate - now) / (1000 * 60 * 60 * 24 * 30.44));
 
   if (months <= 0) return 'prazo alcançado';
   return months === 1 ? 'daqui a 1 mês' : `daqui a ${months} meses`;
 }
 
 function Objetivo() {
-  const [goals, setGoals] = useState(initialGoals);
+  const [goals, setGoals] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [tab, setTab] = useState('EM_ANDAMENTO');
   const [goalModal, setGoalModal] = useState(false);
   const [depositModal, setDepositModal] = useState(null);
   const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
-  const [deposit, setDeposit] = useState({ valor: '', conta: accounts[0] });
+  const [deposit, setDeposit] = useState({ valor: '', contaId: '' });
   const [celebration, setCelebration] = useState(false);
+
+  // Carrega Objetivos e Contas ao abrir a página
+  useEffect(() => {
+    fetchGoals();
+    fetchAccounts();
+  }, []);
+
+  const fetchGoals = async () => {
+    try {
+      const res = await axios.get(API_OBJETIVO_URL);
+      console.log('Objetivos do Java:', res.data);
+      setGoals(res.data || []);
+    } catch (err) {
+      console.error('Erro ao buscar objetivos:', err);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const res = await axios.get(API_CONTA_URL);
+      setAccounts(res.data || []);
+      if (res.data && res.data.length > 0) {
+        setDeposit((prev) => ({ ...prev, contaId: res.data[0].id }));
+      }
+    } catch (err) {
+      console.error('Erro ao buscar contas:', err);
+    }
+  };
 
   const activeGoals = useMemo(
     () => goals.filter((goal) => goal.status === 'EM_ANDAMENTO'),
     [goals]
   );
+
   const shownGoals = goals.filter((goal) => (
     tab === 'EM_ANDAMENTO'
       ? goal.status === 'EM_ANDAMENTO'
       : goal.status === 'CONCLUIDO'
   ));
-  const totalSaved = activeGoals.reduce((sum, goal) => sum + goal.valorAtual, 0);
+
+  const totalSaved = activeGoals.reduce((sum, goal) => sum + (goal.valorAtual || 0), 0);
   const remaining = activeGoals.reduce(
-    (sum, goal) => sum + Math.max(goal.valorAlvo - goal.valorAtual, 0),
+    (sum, goal) => sum + Math.max((goal.valorAlvo || 0) - (goal.valorAtual || 0), 0),
     0
   );
 
@@ -76,57 +115,137 @@ function Objetivo() {
   };
 
   const openEdit = (goal) => {
-    setEditingId(goal.id);
+    const id = goal.id || goal.idObjetivo;
+    setEditingId(id);
+    
+    let rawDate = goal.dataLimite || goal.dataPrevista;
+    let dateStr = '';
+    if (Array.isArray(rawDate)) {
+      const [y, m, d] = rawDate;
+      dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    } else if (typeof rawDate === 'string') {
+      dateStr = rawDate.split('T')[0];
+    }
+
     setForm({
       ...goal,
-      valorAlvo: String(goal.valorAlvo),
-      valorAtual: String(goal.valorAtual)
+      valorAlvo: String(goal.valorAlvo || ''),
+      valorAtual: String(goal.valorAtual || ''),
+      dataPrevista: dateStr || ''
     });
     setMenuId(null);
     setGoalModal(true);
   };
 
-  const saveGoal = (event) => {
+  const saveGoal = async (event) => {
     event.preventDefault();
 
+    // Busca o usuário logado
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    let idDoUsuarioLogado = null;
+
+    if (usuarioStorage) {
+      const usuarioObj = JSON.parse(usuarioStorage);
+      idDoUsuarioLogado = usuarioObj.id;
+    }
+
+    if (!idDoUsuarioLogado) {
+      alert("Erro: Você precisa estar logado para cadastrar um objetivo!");
+      return;
+    }
+
     const payload = {
-      ...form,
-      id: editingId || Date.now(),
       nome: form.nome.trim(),
+      icone: form.icone,
       valorAlvo: Number(form.valorAlvo),
-      valorAtual: Number(form.valorAtual || 0)
+      valorAtual: Number(form.valorAtual || 0),
+      dataLimite: form.dataPrevista.includes('T') 
+        ? form.dataPrevista 
+        : `${form.dataPrevista}T00:00:00`,
+      status: form.status,
+      usuarioId: idDoUsuarioLogado 
     };
 
-    if (!payload.nome || !payload.valorAlvo || !payload.dataPrevista) return;
-
-    setGoals((current) => (
-      editingId
-        ? current.map((goal) => (goal.id === editingId ? payload : goal))
-        : [payload, ...current]
-    ));
-    setGoalModal(false);
+    try {
+      if (editingId) {
+        await axios.put(`${API_OBJETIVO_URL}/${editingId}`, payload);
+      } else {
+        await axios.post(API_OBJETIVO_URL, payload);
+      }
+      setGoalModal(false);
+      fetchGoals();
+    } catch (err) {
+      console.error('Erro detalhado do Java:', err.response?.data);
+      alert('Erro ao salvar objetivo. Verifique o console.');
+    }
   };
 
-  const deleteGoal = (id) => {
-    setGoals((current) => current.filter((goal) => goal.id !== id));
-    setMenuId(null);
+  // Função para deletar objetivo
+  const deleteGoal = async (id) => {
+    if (!id) {
+      alert("Erro: ID do objetivo não foi encontrado!");
+      return;
+    }
+
+    if (window.confirm("Tem certeza que deseja excluir este objetivo?")) {
+      try {
+        await axios.delete(`${API_OBJETIVO_URL}/${id}`);
+        fetchGoals();
+      } catch (err) {
+        console.error('Erro ao deletar objetivo:', err);
+        alert('Erro ao excluir objetivo. Verifique o console.');
+      }
+    }
   };
 
-  const confirmDeposit = (event) => {
+  const confirmDeposit = async (event) => {
     event.preventDefault();
 
     const value = Number(deposit.valor);
     if (!value || value <= 0) return;
 
-    setGoals((current) => current.map((goal) => (
-      goal.id === depositModal.id
-        ? { ...goal, valorAtual: Math.min(goal.valorAlvo, goal.valorAtual + value) }
-        : goal
-    )));
-    setDepositModal(null);
-    setDeposit({ valor: '', conta: accounts[0] });
-    setCelebration(true);
-    window.setTimeout(() => setCelebration(false), 2500);
+    const novoValorAtual = Math.min(depositModal.valorAlvo, (depositModal.valorAtual || 0) + value);
+    const estaConcluido = novoValorAtual >= depositModal.valorAlvo;
+
+    let rawDate = depositModal.dataLimite || depositModal.dataPrevista;
+    let dataIso = '';
+    if (Array.isArray(rawDate)) {
+      const [y, m, d] = rawDate;
+      dataIso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00`;
+    } else if (typeof rawDate === 'string') {
+      dataIso = rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`;
+    }
+
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    let idDoUsuarioLogado = null;
+    if (usuarioStorage) {
+      const usuarioObj = JSON.parse(usuarioStorage);
+      idDoUsuarioLogado = usuarioObj.id;
+    }
+
+    const payload = {
+      nome: depositModal.nome,
+      icone: depositModal.icone,
+      valorAlvo: depositModal.valorAlvo,
+      valorAtual: novoValorAtual,
+      status: estaConcluido ? 'CONCLUIDO' : depositModal.status,
+      dataLimite: dataIso,
+      usuarioId: idDoUsuarioLogado
+    };
+
+    const targetId = depositModal.id || depositModal.idObjetivo;
+
+    try {
+      await axios.put(`${API_OBJETIVO_URL}/${targetId}`, payload);
+      setDepositModal(null);
+      setDeposit({ valor: '', contaId: accounts[0]?.id || '' });
+      setCelebration(true);
+      window.setTimeout(() => setCelebration(false), 2500);
+      fetchGoals();
+    } catch (err) {
+      console.error('Erro ao efetuar depósito:', err);
+      alert('Erro ao guardar dinheiro no objetivo.');
+    }
   };
 
   return (
@@ -169,7 +288,6 @@ function Objetivo() {
             <strong>{currency(remaining)}</strong>
             <span>para realizar seus planos</span>
           </div>
-          
         </section>
 
         <section className={styles.toolbar}>
@@ -185,24 +303,25 @@ function Objetivo() {
 
         <section className={styles.grid}>
           {shownGoals.length ? shownGoals.map((goal) => {
-            const progress = Math.min(Math.round((goal.valorAtual / goal.valorAlvo) * 100), 100);
+            const currentId = goal.id || goal.idObjetivo;
+            const progress = Math.min(Math.round(((goal.valorAtual || 0) / goal.valorAlvo) * 100), 100);
 
             return (
-              <article className={styles.card} key={goal.id}>
+              <article className={styles.card} key={currentId}>
                 <div className={styles.cardTop}>
                   <div className={styles.goalIcon}>{goal.icone}</div>
                   <div className={styles.goalTitle}>
                     <h2>{goal.nome}</h2>
-                    <p>🗓️ {relativeDate(goal.dataPrevista)}</p>
+                    <p>🗓️ {relativeDate(goal.dataLimite || goal.dataPrevista)}</p>
                   </div>
                   <div className={styles.menuWrap}>
-                    <button className={styles.menuButton} onClick={() => setMenuId(menuId === goal.id ? null : goal.id)} aria-label={`Opções de ${goal.nome}`}>
+                    <button className={styles.menuButton} onClick={() => setMenuId(menuId === currentId ? null : currentId)} aria-label={`Opções de ${goal.nome}`}>
                       •••
                     </button>
-                    {menuId === goal.id && (
+                    {menuId === currentId && (
                       <div className={styles.menu}>
                         <button onClick={() => openEdit(goal)}>Editar</button>
-                        <button className={styles.delete} onClick={() => deleteGoal(goal.id)}>Excluir</button>
+                        <button className={styles.delete} onClick={() => deleteGoal(currentId)}>Excluir</button>
                       </div>
                     )}
                   </div>
@@ -218,17 +337,19 @@ function Objetivo() {
                 <p className={styles.remaining}>
                   {progress === 100
                     ? 'Objetivo concluído! 🎉'
-                    : `Faltam ${currency(Math.max(goal.valorAlvo - goal.valorAtual, 0))} para chegar lá`}
+                    : `Faltam ${currency(Math.max(goal.valorAlvo - (goal.valorAtual || 0), 0))} para chegar lá`}
                 </p>
                 {goal.status === 'EM_ANDAMENTO' && (
-                  <button className={styles.depositButton} onClick={() => { setDepositModal(goal); setDeposit({ valor: '', conta: accounts[0] }); }}>
+                  <button className={styles.depositButton} onClick={() => { setDepositModal(goal); setDeposit({ valor: '', contaId: accounts[0]?.id || '' }); }}>
                     + Guardar dinheiro
                   </button>
                 )}
               </article>
             );
           }) : (
-            <div className={styles.empty}>Nenhum objetivo concluído ainda. Continue guardando! 🌱</div>
+            <div className={styles.empty}>
+              {tab === 'EM_ANDAMENTO' ? 'Nenhum objetivo em andamento.' : 'Nenhum objetivo concluído ainda. Continue guardando! 🌱'}
+            </div>
           )}
         </section>
       </div>
@@ -303,7 +424,7 @@ function Objetivo() {
               <span>{depositModal.icone}</span>
               <div>
                 <strong>{currency(depositModal.valorAtual)} guardados</strong>
-                <p>Faltam {currency(Math.max(depositModal.valorAlvo - depositModal.valorAtual, 0))}</p>
+                <p>Faltam {currency(Math.max(depositModal.valorAlvo - (depositModal.valorAtual || 0), 0))}</p>
               </div>
             </div>
             <label className={styles.bigField}>
@@ -312,8 +433,10 @@ function Objetivo() {
             </label>
             <label>
               Conta de origem
-              <select value={deposit.conta} onChange={(event) => setDeposit({ ...deposit, conta: event.target.value })}>
-                {accounts.map((account) => <option key={account}>{account}</option>)}
+              <select value={deposit.contaId} onChange={(event) => setDeposit({ ...deposit, contaId: event.target.value })}>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>{acc.nomeConta || acc.nome}</option>
+                ))}
               </select>
             </label>
             <button className={`headerButton ${styles.confirm}`} type="submit">Confirmar depósito</button>

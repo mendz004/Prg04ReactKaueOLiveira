@@ -1,8 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
 import styles from './relatorio.module.css';
+
+const API_RECEITA_URL = 'http://localhost:8080/receitas';
+const API_DESPESA_URL = 'http://localhost:8080/despesas';
+const API_CONTA_URL = 'http://localhost:8080/contas';
 
 const nav = [
   ['Dashboard', '/dashboard'],
@@ -15,34 +20,51 @@ const nav = [
   ['Relatório', '/relatorio']
 ];
 
-const categories = [
-  ['Moradia', 1350, '#8b5cf6'],
-  ['Alimentação', 680, '#f59e0b'],
-  ['Transporte', 420, '#06b6d4'],
-  ['Lazer', 370, '#ef4444'],
-  ['Saúde', 240, '#22c55e']
-];
-
-const days = [
-  ['01', 420, 120],
-  ['05', 0, 280],
-  ['10', 950, 150],
-  ['15', 3200, 430],
-  ['20', 180, 690],
-  ['25', 0, 310],
-  ['30', 0, 180]
-];
+const categoryColors = {
+  MORADIA: '#8b5cf6',
+  ALIMENTACAO: '#f59e0b',
+  ALIMENTAÇÃO: '#f59e0b',
+  TRANSPORTE: '#06b6d4',
+  LAZER: '#ef4444',
+  SAUDE: '#22c55e',
+  SAÚDE: '#22c55e',
+  EDUCACAO: '#3b82f6',
+  EDUCAÇÃO: '#3b82f6',
+  INVESTIMENTOS: '#10b981',
+  OUTROS: '#6b7280'
+};
 
 const money = (value) => new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL'
-}).format(value);
+}).format(value || 0);
 
-function Donut() {
+// Mapeia dinamicamente a propriedade da conta vinda do Java
+const getContaNome = (c) => 
+  c?.nome || 
+  c?.nomeConta || 
+  c?.banco || 
+  c?.descricao || 
+  c?.instituicao || 
+  c?.tipoConta || 
+  `Conta #${c?.id || c?.idConta}`;
+
+function Donut({ categories }) {
   const total = categories.reduce((sum, [, value]) => sum + value, 0);
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
+
+  if (!total) {
+    return (
+      <div className={styles.donutWrap}>
+        <svg viewBox="0 0 140 140" aria-label="Sem despesas">
+          <circle cx="70" cy="70" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="19" />
+          <text x="70" y="74" textAnchor="middle" className={styles.donutLabel}>R$ 0</text>
+        </svg>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.donutWrap}>
@@ -63,7 +85,6 @@ function Donut() {
               transform="rotate(-90 70 70)"
             />
           );
-
           offset += dash;
           return circle;
         })}
@@ -78,12 +99,18 @@ function Donut() {
   );
 }
 
-function Evolution() {
-  const max = 3400;
+function Evolution({ days }) {
+  const maxCalculated = Math.max(...days.flatMap(([, inc, exp]) => [inc, exp]), 100);
+  const max = maxCalculated * 1.1;
   const width = 560;
   const height = 185;
+
   const points = days
-    .map(([, income], index) => `${45 + index * 70},${160 - (income / max) * 125}`)
+    .map(([, income], index) => {
+      const x = 45 + index * (495 / Math.max(days.length - 1, 1));
+      const y = 160 - (income / max) * 125;
+      return `${x},${y}`;
+    })
     .join(' ');
 
   return (
@@ -92,20 +119,22 @@ function Evolution() {
         <line key={y} x1="38" y1={y} x2="540" y2={y} className={styles.gridLine} />
       ))}
       {days.map(([day, , expense], index) => {
-        const x = 45 + index * 70;
+        const x = 45 + index * (495 / Math.max(days.length - 1, 1));
         const barHeight = (expense / max) * 125;
 
         return (
-          <g key={day}>
-            <rect x={x - 10} y={160 - barHeight} width="20" height={barHeight} rx="4" className={styles.expenseBar} />
+          <g key={day + index}>
+            <rect x={x - 8} y={160 - barHeight} width="16" height={barHeight} rx="4" className={styles.expenseBar} />
             <text x={x} y="180" textAnchor="middle" className={styles.axisText}>{day}</text>
           </g>
         );
       })}
       <polyline points={points} fill="none" className={styles.incomeLine} />
-      {days.map(([, income], index) => (
-        <circle key={index} cx={45 + index * 70} cy={160 - (income / max) * 125} r="4" className={styles.incomePoint} />
-      ))}
+      {days.map(([, income], index) => {
+        const x = 45 + index * (495 / Math.max(days.length - 1, 1));
+        const y = 160 - (income / max) * 125;
+        return <circle key={index} cx={x} cy={y} r="4" className={styles.incomePoint} />;
+      })}
     </svg>
   );
 }
@@ -113,12 +142,109 @@ function Evolution() {
 export default function Relatorio() {
   const [period, setPeriod] = useState('Julho 2026');
   const [account, setAccount] = useState('Todas as contas');
+  
+  const [receitas, setReceitas] = useState([]);
+  const [despesas, setDespesas] = useState([]);
+  const [contas, setContas] = useState([]);
 
-  const income = 5050;
-  const expense = 3060;
-  const balance = income - expense;
-  const total = categories.reduce((sum, [, value]) => sum + value, 0);
-  const sorted = useMemo(() => [...categories].sort((first, second) => second[1] - first[1]), []);
+  useEffect(() => {
+    fetchReportData();
+  }, []);
+
+  const fetchReportData = async () => {
+    try {
+      const [resReceitas, resDespesas, resContas] = await Promise.allSettled([
+        axios.get(API_RECEITA_URL),
+        axios.get(API_DESPESA_URL),
+        axios.get(API_CONTA_URL)
+      ]);
+
+      if (resReceitas.status === 'fulfilled') setReceitas(resReceitas.value.data || []);
+      if (resDespesas.status === 'fulfilled') setDespesas(resDespesas.value.data || []);
+      if (resContas.status === 'fulfilled') setContas(resContas.value.data || []);
+    } catch (err) {
+      console.error('Erro ao buscar dados do relatório:', err);
+    }
+  };
+
+  const { categories, days, income, expense, balance } = useMemo(() => {
+    const selectedMonth = '07'; 
+    const selectedYear = '2026';
+
+    const filteredReceitas = receitas.filter((r) => {
+      const data = r.data ? new Date(r.data) : null;
+      const matchMonth = data ? String(data.getMonth() + 1).padStart(2, '0') === selectedMonth : true;
+      const matchAccount = account === 'Todas as contas' || String(r.contaId || r.conta?.id || r.idConta) === account;
+      return matchMonth && matchAccount;
+    });
+
+    const filteredDespesas = despesas.filter((d) => {
+      const data = d.data ? new Date(d.data) : null;
+      const matchMonth = data ? String(data.getMonth() + 1).padStart(2, '0') === selectedMonth : true;
+      const matchAccount = account === 'Todas as contas' || String(d.contaId || d.conta?.id || d.idConta) === account;
+      return matchMonth && matchAccount;
+    });
+
+    const totalIncome = filteredReceitas.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    const totalExpense = filteredDespesas.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+
+    const categoryMap = {};
+    filteredDespesas.forEach((item) => {
+      const cat = (item.categoria || 'OUTROS').toUpperCase();
+      categoryMap[cat] = (categoryMap[cat] || 0) + Number(item.valor || 0);
+    });
+
+    const parsedCategories = Object.entries(categoryMap).map(([cat, val]) => [
+      cat.charAt(0) + cat.slice(1).toLowerCase(),
+      val,
+      categoryColors[cat] || '#8b5cf6'
+    ]);
+
+    const daysMap = {
+      '01': { inc: 0, exp: 0 },
+      '05': { inc: 0, exp: 0 },
+      '10': { inc: 0, exp: 0 },
+      '15': { inc: 0, exp: 0 },
+      '20': { inc: 0, exp: 0 },
+      '25': { inc: 0, exp: 0 },
+      '30': { inc: 0, exp: 0 }
+    };
+
+    filteredReceitas.forEach((r) => {
+      const day = r.data ? String(new Date(r.data).getDate()).padStart(2, '0') : '15';
+      const closestDay = Object.keys(daysMap).reduce((prev, curr) => 
+        Math.abs(Number(curr) - Number(day)) < Math.abs(Number(prev) - Number(day)) ? curr : prev
+      );
+      daysMap[closestDay].inc += Number(r.valor || 0);
+    });
+
+    filteredDespesas.forEach((d) => {
+      const day = d.data ? String(new Date(d.data).getDate()).padStart(2, '0') : '15';
+      const closestDay = Object.keys(daysMap).reduce((prev, curr) => 
+        Math.abs(Number(curr) - Number(day)) < Math.abs(Number(prev) - Number(day)) ? curr : prev
+      );
+      daysMap[closestDay].exp += Number(d.valor || 0);
+    });
+
+    const parsedDays = Object.entries(daysMap).map(([day, val]) => [day, val.inc, val.exp]);
+
+    return {
+      categories: parsedCategories.length ? parsedCategories : [['Sem despesas', 0, '#e5e7eb']],
+      days: parsedDays,
+      income: totalIncome,
+      expense: totalExpense,
+      balance: totalIncome - totalExpense
+    };
+  }, [receitas, despesas, account]);
+
+  const totalCategoryExpense = categories.reduce((sum, [, value]) => sum + value, 0);
+  const sortedCategories = useMemo(
+    () => [...categories].sort((first, second) => second[1] - first[1]),
+    [categories]
+  );
+
+  const topCategory = sortedCategories[0];
+  const topPercentage = totalCategoryExpense ? Math.round((topCategory[1] / totalCategoryExpense) * 100) : 0;
 
   return (
     <main className={styles.page}>
@@ -159,16 +285,20 @@ export default function Relatorio() {
               <option>Julho 2026</option>
               <option>Últimos 3 meses</option>
               <option>Últimos 6 meses</option>
-              <option>Período personalizado</option>
             </select>
           </label>
           <label>
             Conta
             <select value={account} onChange={(event) => setAccount(event.target.value)}>
-              <option>Todas as contas</option>
-              <option>Conta Nubank</option>
-              <option>Conta Itaú</option>
-              <option>Carteira</option>
+              <option value="Todas as contas">Todas as contas</option>
+              {contas.map((c) => {
+                const contaId = c.id ?? c.idConta;
+                return (
+                  <option key={contaId} value={String(contaId)}>
+                    {getContaNome(c)}
+                  </option>
+                );
+              })}
             </select>
           </label>
           <span>Dados consolidados de {period}</span>
@@ -196,7 +326,7 @@ export default function Relatorio() {
             <div>
               <p>Balanço do mês</p>
               <strong>{money(balance)}</strong>
-              <small>Você fechou no positivo</small>
+              <small>{balance >= 0 ? 'Você fechou no positivo' : 'Atenção aos gastos do mês'}</small>
             </div>
           </article>
         </section>
@@ -210,14 +340,14 @@ export default function Relatorio() {
               </div>
             </header>
             <div className={styles.donutContent}>
-              <Donut />
+              <Donut categories={categories} />
               <ul className={styles.legend}>
-                {sorted.map(([name, value, color]) => (
+                {sortedCategories.map(([name, value, color]) => (
                   <li key={name}>
                     <i style={{ background: color }} />
                     <span>
                       {name}
-                      <small>{Math.round((value / total) * 100)}% do total</small>
+                      <small>{totalCategoryExpense ? Math.round((value / totalCategoryExpense) * 100) : 0}% do total</small>
                     </span>
                     <b>{money(value)}</b>
                   </li>
@@ -234,27 +364,37 @@ export default function Relatorio() {
               </div>
               <div className={styles.chartKey}><i /> Receitas <i /> Despesas</div>
             </header>
-            <Evolution />
+            <Evolution days={days} />
           </article>
         </section>
 
         <section className={styles.insights}>
           <header>
-            <p>✦ RESUMO AUTOMÁTICO</p>
+            <p>RESUMO AUTOMÁTICO</p>
             <h2>Insights para você</h2>
           </header>
           <div>
             <article>
               <span>🏠</span>
-              <p>Seu maior gasto neste mês foi com <b>Moradia (44%)</b>.</p>
+              <p>
+                {topCategory && topCategory[1] > 0
+                  ? <>Seu maior gasto neste mês foi com <b>{topCategory[0]} ({topPercentage}%)</b>.</>
+                  : <>Nenhuma despesa registrada para análise neste período.</>}
+              </p>
             </article>
             <article>
               <span>🎉</span>
-              <p>Você gastou <b>{money(150)} a mais em Lazer</b> comparado ao mês passado.</p>
+              <p>Você manteve um total de <b>{money(expense)} em despesas</b> durante este período.</p>
             </article>
             <article>
               <span>🌱</span>
-              <p>Parabéns! Suas receitas superaram as despesas em <b>{Math.round((balance / income) * 100)}%</b>.</p>
+              <p>
+                {income > 0 
+                  ? balance >= 0
+                    ? <>Parabéns! Suas receitas superaram as despesas em <b>{Math.round((balance / income) * 100)}%</b>.</>
+                    : <>Suas despesas superaram suas receitas neste mês.</>
+                  : <>Insira receitas para calcular seu saldo positivo.</>}
+              </p>
             </article>
           </div>
         </section>

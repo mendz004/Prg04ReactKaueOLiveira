@@ -1,92 +1,10 @@
+import { useState, useEffect, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import style from './dashboard.module.css';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
 import { Link } from 'react-router-dom';
-
-const summaryCards = [
-  {
-    title: 'Saldo Geral',
-    value: 'R$ 18.430,00',
-    subtitle: 'Disponível agora',
-    color: '#1e293b'
-  },
-  {
-    title: 'Receitas do Mês',
-    value: 'R$ 8.240,00',
-    subtitle: '+12% em relação ao mês passado',
-    color: '#4f9a7b)'
-  },
-  {
-    title: 'Despesas do Mês',
-    value: 'R$ 4.980,00',
-    subtitle: '-3% em relação ao mês passado',
-    color: '#ef4444'
-  },
-  {
-    title: 'Fatura Atual',
-    value: 'R$ 1.680,00',
-    subtitle: 'Limite disponível: R$ 2.320,00',
-    color: '#f59e0b'
-  }
-];
-
-const monthData = [
-  { month: 'Jan', receitas: 5200, despesas: 2900 },
-  { month: 'Fev', receitas: 6100, despesas: 3400 },
-  { month: 'Mar', receitas: 5800, despesas: 3600 },
-  { month: 'Abr', receitas: 6900, despesas: 4100 },
-  { month: 'Mai', receitas: 7200, despesas: 3850 },
-  { month: 'Jun', receitas: 7800, despesas: 4300 }
-];
-
-const categoryShare = [
-  { name: 'Alimentação', value: 34, color: '#4f9a7b' },
-  { name: 'Transporte', value: 22, color: '#1e293b' },
-  { name: 'Lazer', value: 18, color: '#f59e0b' },
-  { name: 'Saúde', value: 14, color: '#a78bfa' },
-  { name: 'Outros', value: 12, color: '#ef4444' }
-];
-
-const alerts = [
-  {
-    title: 'Atenção',
-    text: 'Você já consumiu 85% do limite de alimentação este mês.'
-  },
-  {
-    title: 'Resumo',
-    text: 'Seu saldo de reserva continua acima de 30% da sua renda mensal.'
-  }
-];
-
-const budgets = [
-  { name: 'Alimentação', used: 85, total: 100, color: '#4f9a7b' },
-  { name: 'Transporte', used: 62, total: 100, color: '#1e293b' },
-  { name: 'Lazer', used: 41, total: 100, color: '#f59e0b' }
-];
-
-const goals = [
-  {
-    name: 'Viagem para a Praia',
-    saved: 4200,
-    target: 6000,
-    color: '#4f9a7b'
-  },
-  {
-    name: 'Carro Novo',
-    saved: 16500,
-    target: 30000,
-    color: '#1e293b'
-  }
-];
-
-const movements = [
-  { icon: '💸', name: 'Salário', date: '12/07', value: '+ R$ 3.200,00', type: 'income' },
-  { icon: '🥗', name: 'Supermercado', date: '11/07', value: '- R$ 430,00', type: 'expense' },
-  { icon: '🚗', name: 'Combustível', date: '10/07', value: '- R$ 180,00', type: 'expense' },
-  { icon: '🎉', name: 'Lazer', date: '09/07', value: '- R$ 240,00', type: 'expense' },
-  { icon: '💳', name: 'Pagamento de cartão', date: '08/07', value: '- R$ 520,00', type: 'expense' }
-];
+import { api } from '../../api/Api';
 
 const dashboardNavItems = [
   { label: 'Receita', path: '/receita' },
@@ -98,21 +16,171 @@ const dashboardNavItems = [
   { label: 'Relatorio', path: '/relatorio' }
 ];
 
-function Dashboard() {
-  const maxValue = Math.max(...monthData.flatMap((item) => [item.receitas, item.despesas]));
-  const donutGradient = `conic-gradient(${categoryShare
-    .map((item, index) => {
-      const start = categoryShare
-        .slice(0, index)
-        .reduce((acc, current) => acc + current.value, 0);
-      const end = start + item.value;
+// Paleta de cores para categorização dinâmica
+const PALETTE = ['#4f9a7b', '#1e293b', '#f59e0b', '#a78bfa', '#ef4444', '#3b82f6', '#ec4899'];
 
-      return `${item.color} ${start}% ${end}%`;
-    })
-    .join(', ')})`;
+function Dashboard() {
+  const [receitas, setReceitas] = useState([]);
+  const [despesas, setDespesas] = useState([]);
+  const [objetivos, setObjetivos] = useState([]);
+  const [orcamentos, setOrcamentos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Busca dados de todas as rotas do Spring Boot
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [resReceitas, resDespesas, resObjetivos, resOrcamentos] = await Promise.allSettled([
+          api.get('/receitas'),
+          api.get('/despesas'),
+          api.get('/objetivos'),
+          api.get('/orcamentos')
+        ]);
+
+        if (resReceitas.status === 'fulfilled') {
+          setReceitas(Array.isArray(resReceitas.value.data) ? resReceitas.value.data : []);
+        }
+        if (resDespesas.status === 'fulfilled') {
+          setDespesas(Array.isArray(resDespesas.value.data) ? resDespesas.value.data : []);
+        }
+        if (resObjetivos.status === 'fulfilled') {
+          setObjetivos(Array.isArray(resObjetivos.value.data) ? resObjetivos.value.data : []);
+        }
+        if (resOrcamentos.status === 'fulfilled') {
+          setOrcamentos(Array.isArray(resOrcamentos.value.data) ? resOrcamentos.value.data : []);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados do Dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // --- 1. CÁLCULOS FINANCEIROS GERAIS ---
+  const totalReceitas = useMemo(() => {
+    return receitas.reduce((acc, item) => acc + (Number(item.valor) || 0), 0);
+  }, [receitas]);
+
+  const totalDespesas = useMemo(() => {
+    return despesas.reduce((acc, item) => acc + (Number(item.valor) || 0), 0);
+  }, [despesas]);
+
+  const saldoGeral = totalReceitas - totalDespesas;
+
+  // Os orçamentos armazenam o limite; o gasto é obtido das despesas da mesma categoria.
+  // Isso mantém o dashboard sincronizado com a tela de Orçamentos e com a API.
+  const orcamentosComGastos = useMemo(() => {
+    return orcamentos.map((orcamento) => {
+      const categoria = (orcamento.categoria || orcamento.nome || '').toUpperCase();
+      const gasto = despesas
+        .filter((despesa) => (despesa.categoria || despesa.origem || '').toUpperCase() === categoria)
+        .reduce((total, despesa) => total + (Number(despesa.valor) || 0), 0);
+
+      return {
+        ...orcamento,
+        gasto,
+        limite: Number(orcamento.limite || orcamento.valorLimite || 0)
+      };
+    });
+  }, [orcamentos, despesas]);
+
+  // --- 2. DISTRIBUIÇÃO DINÂMICA DE DESPESAS POR CATEGORIA ---
+  const categoryShare = useMemo(() => {
+    if (!despesas.length || totalDespesas === 0) return [];
+
+    // Agrupa os valores de despesa por Categoria/Origem
+    const grouped = despesas.reduce((acc, item) => {
+      const cat = item.categoria || item.origem || 'OUTROS';
+      acc[cat] = (acc[cat] || 0) + (Number(item.valor) || 0);
+      return acc;
+    }, {});
+
+    // Mapeia para porcentagem e atribui cores
+    return Object.entries(grouped).map(([name, amount], index) => {
+      const percentage = Math.round((amount / totalDespesas) * 100);
+      return {
+        name,
+        amount,
+        value: percentage,
+        color: PALETTE[index % PALETTE.length]
+      };
+    });
+  }, [despesas, totalDespesas]);
+
+  // Gradient para o gráfico Donut/Rosca
+  const donutGradient = useMemo(() => {
+    if (!categoryShare.length) return 'conic-gradient(#e2e8f0 0% 100%)';
+
+    let currentAcc = 0;
+    const slices = categoryShare.map((item) => {
+      const start = currentAcc;
+      currentAcc += item.value;
+      return `${item.color} ${start}% ${currentAcc}%`;
+    });
+
+    return `conic-gradient(${slices.join(', ')})`;
+  }, [categoryShare]);
+
+  // --- 3. ÚLTIMAS MOVIMENTAÇÕES (RECEITAS + DESPESAS) ---
+  const movements = useMemo(() => {
+    const list = [
+      ...receitas.map((r) => ({
+        id: `rec-${r.id}`,
+        icon: '💸',
+        name: r.descricao || 'Receita',
+        date: r.data ? new Date(r.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--',
+        rawDate: new Date(r.data || Date.now()),
+        value: `+ R$ ${Number(r.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        type: 'income'
+      })),
+      ...despesas.map((d) => ({
+        id: `desp-${d.id}`,
+        icon: '🛒',
+        name: d.descricao || 'Despesa',
+        date: d.data ? new Date(d.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--',
+        rawDate: new Date(d.data || Date.now()),
+        value: `- R$ ${Number(d.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        type: 'expense'
+      }))
+    ];
+
+    return list.sort((a, b) => b.rawDate - a.rawDate).slice(0, 5);
+  }, [receitas, despesas]);
+
+  // Cards sintéticos do topo
+  const summaryCards = [
+    {
+      title: 'Saldo Geral',
+      value: `R$ ${saldoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: 'Calculado em tempo real',
+      color: '#1e293b'
+    },
+    {
+      title: 'Receitas Totais',
+      value: `R$ ${totalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: `${receitas.length} lançamentos`,
+      color: '#4f9a7b'
+    },
+    {
+      title: 'Despesas Totais',
+      value: `R$ ${totalDespesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      subtitle: `${despesas.length} lançamentos`,
+      color: '#ef4444'
+    },
+    {
+      title: 'Objetivos Ativos',
+      value: `${objetivos.length}`,
+      subtitle: 'Metas em andamento',
+      color: '#f59e0b'
+    }
+  ];
 
   return (
     <div className={style.dashboardPage}>
+      {/* NAVBAR */}
       <nav className={`${navbarStyles.navbar} navbar navbar-expand-lg navbar-dark sticky-top mb-4`}>
         <Link className={`navbar-brand ${navbarStyles.logo}`} to="/dashboard">
           📊 Dashboard
@@ -139,17 +207,19 @@ function Dashboard() {
         </div>
       </nav>
 
+      {/* HEADER */}
       <header className={style.dashboardHeader}>
         <div>
           <p className={style.kicker}>Painel financeiro</p>
           <h1>Dashboard</h1>
         </div>
 
-        <button type="button" className="headerButton">
+        <Link to="/receita" className="headerButton text-decoration-none d-inline-flex align-items-center justify-content-center">
           + Nova transação
-        </button>
+        </Link>
       </header>
 
+      {/* CARDS RESUMO DADOS REAIS */}
       <section className={style.summaryGrid}>
         {summaryCards.map((card) => (
           <article
@@ -158,156 +228,154 @@ function Dashboard() {
             style={{ borderTop: `4px solid ${card.color}` }}
           >
             <span className={style.cardLabel}>{card.title}</span>
-            <p className={style.cardValue}>{card.value}</p>
+            <p className={style.cardValue}>{loading ? '...' : card.value}</p>
             <p className={style.cardSubtle}>{card.subtitle}</p>
           </article>
         ))}
       </section>
 
+      {/* SEÇÃO GRÁFICOS */}
       <section className={style.chartsGrid}>
-        <article className={style.panelCard}>
-          <h2 className={style.sectionTitle}>Receitas vs. despesas</h2>
-
-          <div className={style.barChart}>
-            {monthData.map((item) => (
-              <div key={item.month} className={style.barColumn}>
-                <div className={style.barPair}>
-                  <div
-                    className={style.bar}
-                    style={{
-                      height: `${(item.receitas / maxValue) * 100}%`,
-                      background: 'var(--cor-01)'
-                    }}
-                  />
-                  <div
-                    className={style.bar}
-                    style={{
-                      height: `${(item.despesas / maxValue) * 100}%`,
-                      background: '#ef4444'
-                    }}
-                  />
-                </div>
-                <span className={style.monthLabel}>{item.month}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-
+        {/* DISTRIBUIÇÃO DE DESPESAS DINÂMICA */}
         <article className={style.panelCard}>
           <h2 className={style.sectionTitle}>Distribuição de despesas</h2>
 
-          <div className={style.donutWrap}>
-            <div className={style.donutChart} style={{ background: donutGradient }}>
-              <div className={style.donutInner}>
-                <div>
-                  <strong>44%</strong>
-                  <span>gasto útil</span>
+          {categoryShare.length === 0 ? (
+            <div className="p-4 text-center text-muted">
+              Cadastre despesas para visualizar a distribuição por categoria.
+            </div>
+          ) : (
+            <div className={style.donutWrap}>
+              <div className={style.donutChart} style={{ background: donutGradient }}>
+                <div className={style.donutInner}>
+                  <div>
+                    <strong>100%</strong>
+                    <span>dos gastos</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className={style.legendList}>
-              {categoryShare.map((item) => (
-                <div key={item.name} className={style.legendItem}>
-                  <div className={style.legendMeta}>
-                    <span className={style.legendDot} style={{ background: item.color }} />
-                    <span>{item.name}</span>
+              <div className={style.legendList}>
+                {categoryShare.map((item) => (
+                  <div key={item.name} className={style.legendItem}>
+                    <div className={style.legendMeta}>
+                      <span className={style.legendDot} style={{ background: item.color }} />
+                      <span>{item.name}</span>
+                    </div>
+                    <strong>{item.value}%</strong>
                   </div>
-                  <strong>{item.value}%</strong>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </article>
-      </section>
 
-      <section className={style.lowerGrid}>
+        {/* ORÇAMENTOS */}
         <article className={style.panelCard}>
           <h2 className={style.sectionTitle}>Alertas e orçamento</h2>
 
-          <div className={style.alertList}>
-            {alerts.map((alert) => (
-              <div key={alert.title} className={style.alertItem}>
-                <strong>{alert.title}</strong>
-                <span>{alert.text}</span>
-              </div>
-            ))}
-          </div>
+          {orcamentosComGastos.length === 0 ? (
+            <p className="text-muted small">Nenhum orçamento definido para este mês.</p>
+          ) : (
+            <div className={style.budgetList}>
+              {orcamentosComGastos.map((budget) => {
+                const usedPct = budget.limite ? Math.min(100, Math.round((budget.gasto / budget.limite) * 100)) : 0;
+                return (
+                  <div key={budget.id || budget.categoria} className={style.budgetItem}>
+                    <div className={style.budgetLabelRow}>
+                      <strong>{budget.categoria || budget.nome}</strong>
+                      <span>{usedPct}% usado</span>
+                    </div>
 
-          <div className={style.budgetList} style={{ marginTop: 18 }}>
-            {budgets.map((budget) => (
-              <div key={budget.name} className={style.budgetItem}>
-                <div className={style.budgetLabelRow}>
-                  <strong>{budget.name}</strong>
-                  <span>{budget.used}% usado</span>
-                </div>
+                    <small className="text-muted">
+                      R$ {budget.gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} de R$ {budget.limite.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </small>
 
-                <div className={style.progressTrack} style={{ marginTop: 10 }}>
-                  <div
-                    className={style.progressBar}
-                    style={{ width: `${budget.used}%`, background: budget.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className={style.panelCard}>
-          <h2 className={style.sectionTitle}>Objetivos financeiros</h2>
-
-          <div className={style.goalGrid}>
-            {goals.map((goal) => {
-              const percent = Math.min(100, Math.round((goal.saved / goal.target) * 100));
-
-              return (
-                <div key={goal.name} className={style.goalCard}>
-                  <div className={style.goalHead}>
-                    <strong>{goal.name}</strong>
-                    <span>{percent}%</span>
+                    <div className={style.progressTrack} style={{ marginTop: 10 }}>
+                      <div
+                        className={style.progressBar}
+                        style={{ width: `${usedPct}%`, background: usedPct > 90 ? '#ef4444' : '#4f9a7b' }}
+                      />
+                    </div>
                   </div>
-
-                  <div className={style.goalValue}>
-                    R$ {goal.saved.toLocaleString('pt-BR')}
-                  </div>
-
-                  <div className={style.goalMeta}>
-                    <span>Meta: R$ {goal.target.toLocaleString('pt-BR')}</span>
-                    <span>Atual</span>
-                  </div>
-
-                  <div className={style.progressTrack}>
-                    <div
-                      className={style.progressBar}
-                      style={{ width: `${percent}%`, background: goal.color }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </article>
       </section>
 
-      <section className={style.panelCard} style={{ marginTop: 24 }}>
-        <h2 className={style.sectionTitle}>Últimas movimentações</h2>
+      {/* OBJETIVOS E MOVIMENTAÇÕES */}
+      <section className={style.lowerGrid}>
+        {/* OBJETIVOS FINANCEIROS DINÂMICOS */}
+        <article className={style.panelCard}>
+          <h2 className={style.sectionTitle}>Objetivos financeiros</h2>
 
-        <div className={style.movList}>
-          {movements.map((item) => (
-            <article key={`${item.name}-${item.date}`} className={style.movementItem}>
-              <div className={style.movIcon} aria-hidden="true">{item.icon}</div>
+          {objetivos.length === 0 ? (
+            <p className="text-muted small">Nenhum objetivo cadastrado ainda. Crie metas na aba Objetivo!</p>
+          ) : (
+            <div className={style.goalGrid}>
+              {objetivos.map((goal, index) => {
+                const saved = Number(goal.valorAtual || goal.guardado || 0);
+                const target = Number(goal.valorMeta || goal.objetivo || 1);
+                const percent = Math.min(100, Math.round((saved / target) * 100));
+                const color = PALETTE[index % PALETTE.length];
 
-              <div className={style.movText}>
-                <strong>{item.name}</strong>
-                <span>{item.date}</span>
-              </div>
+                return (
+                  <div key={goal.id || goal.nome} className={style.goalCard}>
+                    <div className={style.goalHead}>
+                      <strong>{goal.nome || goal.descricao}</strong>
+                      <span>{percent}%</span>
+                    </div>
 
-              <div className={`${style.movValue} ${item.type === 'income' ? style.income : style.expense}`}>
-                {item.value}
-              </div>
-            </article>
-          ))}
-        </div>
+                    <div className={style.goalValue}>
+                      R$ {saved.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+
+                    <div className={style.goalMeta}>
+                      <span>Meta: R$ {target.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div className={style.progressTrack}>
+                      <div
+                        className={style.progressBar}
+                        style={{ width: `${percent}%`, background: color }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </article>
+
+        {/* ÚLTIMAS MOVIMENTAÇÕES DADOS REAIS */}
+        <article className={style.panelCard}>
+          <h2 className={style.sectionTitle}>Últimas movimentações</h2>
+
+          <div className={style.movList}>
+            {loading ? (
+              <p>Carregando movimentações...</p>
+            ) : movements.length === 0 ? (
+              <p className="text-muted small">Nenhuma movimentação cadastrada.</p>
+            ) : (
+              movements.map((item) => (
+                <article key={item.id} className={style.movementItem}>
+                  <div className={style.movIcon} aria-hidden="true">{item.icon}</div>
+
+                  <div className={style.movText}>
+                    <strong>{item.name}</strong>
+                    <span>{item.date}</span>
+                  </div>
+
+                  <div className={`${style.movValue} ${item.type === 'income' ? style.income : style.expense}`}>
+                    {item.value}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </article>
       </section>
     </div>
   );

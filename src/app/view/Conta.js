@@ -1,37 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../../api/Api'; // Importando a conexão com a API
 import '../../styles/receita.css';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
 
-const initialContas = [
-  {
-    id: 1,
-    nome: 'Conta Corrente Principal',
-    tipo: 'Conta Corrente',
-    instituicao: 'Nubank',
-    saldo: 8420,
-    icone: '🏦'
-  },
-  {
-    id: 2,
-    nome: 'Caixinha de Emergência',
-    tipo: 'Poupança',
-    instituicao: 'Itaú',
-    saldo: 3200,
-    icone: '💰'
-  },
-  {
-    id: 3,
-    nome: 'Dinheiro Físico',
-    tipo: 'Carteira',
-    instituicao: 'Físico',
-    saldo: 650,
-    icone: '💵'
-  }
-];
-
-const instituicoes = ['Nubank', 'Itaú', 'Caixa', 'Inter', 'Bradesco', 'Físico'];
 const dashboardNavItems = [
   { label: 'Dashboard', path: '/dashboard' },
   { label: 'Receita', path: '/receita' },
@@ -50,50 +23,82 @@ function formatCurrency(value) {
 }
 
 function Conta() {
-  const [contas, setContas] = useState(initialContas);
+  // Inicializamos com um array vazio
+  const [contas, setContas] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
     nome: '',
     tipo: 'Conta Corrente',
-    instituicao: 'Nubank',
     saldo: ''
   });
   const [editingId, setEditingId] = useState(null);
 
+  // 1. BUSCAR DADOS DO BACK-END
+  useEffect(() => {
+    async function carregarContas() {
+      try {
+        const response = await api.get('/contas');
+        setContas(response.data);
+      } catch (error) {
+        console.error("Erro ao buscar contas:", error);
+      }
+    }
+    carregarContas();
+  }, []);
+
   const saldoTotal = useMemo(() => {
-    return contas.reduce((sum, item) => sum + item.saldo, 0);
+    return contas.reduce((sum, item) => sum + (item.saldoAtual || 0), 0);
   }, [contas]);
 
-  const handleSubmit = (event) => {
+  // 2. CRIAR OU ATUALIZAR NO BACK-END
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.nome.trim() || !form.saldo) {
+    if (!form.nome.trim() || !form.saldo) return;
+
+    // 1. BUSCAR O USUÁRIO LOGADO NO NAVEGADOR
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+
+    if (!usuarioStorage) {
+      alert("Sessão expirada ou usuário não encontrado. Por favor, faça login novamente.");
+      // Se quiser, pode redirecionar para a tela de login:
+      // window.location.href = '/';
       return;
     }
 
+    // Converte a string salva de volta para um objeto JavaScript
+    const usuarioLogado = JSON.parse(usuarioStorage);
+
+    // 2. DTO DINÂMICO E ALINHADO COM O SPRING BOOT
     const payload = {
-      id: editingId ?? Date.now(),
-      nome: form.nome.trim(),
+      nomeConta: form.nome.trim(),
       tipo: form.tipo,
-      instituicao: form.instituicao,
-      saldo: Number(form.saldo),
-      icone: form.instituicao === 'Nubank' ? '🏦' : form.instituicao === 'Itaú' ? '🏛️' : form.instituicao === 'Físico' ? '💵' : '💳'
+      saldoAtual: Number(form.saldo),
+      // Assumindo que o campo de ID que vem do seu back-end se chama "id"
+      usuarioId: Number(usuarioLogado.id)
     };
 
-    if (editingId) {
-      setContas((prev) => prev.map((item) => (item.id === editingId ? payload : item)));
-    } else {
-      setContas((prev) => [payload, ...prev]);
-    }
+    try {
+      if (editingId) {
+        const response = await api.put(`/contas/${editingId}`, payload);
+        setContas((prev) => prev.map((item) => (item.id === editingId ? response.data : item)));
+      } else {
+        const response = await api.post('/contas', payload);
+        setContas((prev) => [response.data, ...prev]);
+      }
 
-    setShowModal(false);
-    setEditingId(null);
-    setForm({
-      nome: '',
-      tipo: 'Conta Corrente',
-      instituicao: 'Nubank',
-      saldo: ''
-    });
+      setShowModal(false);
+      setEditingId(null);
+      setForm({
+        nome: '',
+        tipo: 'Conta Corrente',
+        instituicao: 'Nubank',
+        saldo: ''
+      });
+    } catch (error) {
+      console.error("Erro ao salvar conta:", error);
+      alert("Ocorreu um erro ao salvar a conta.");
+    }
   };
 
   const openCreate = () => {
@@ -101,7 +106,6 @@ function Conta() {
     setForm({
       nome: '',
       tipo: 'Conta Corrente',
-      instituicao: 'Nubank',
       saldo: ''
     });
     setShowModal(true);
@@ -110,16 +114,24 @@ function Conta() {
   const openEdit = (item) => {
     setEditingId(item.id);
     setForm({
-      nome: item.nome,
+      nome: item.nomeConta || '',
       tipo: item.tipo,
-      instituicao: item.instituicao,
-      saldo: String(item.saldo)
+      saldo: String(item.saldoAtual || 0)
     });
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    setContas((prev) => prev.filter((item) => item.id !== id));
+  // 3. DELETAR DO BACK-END
+  const handleDelete = async (id) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta conta? O saldo também será removido.")) return;
+
+    try {
+      await api.delete(`/contas/${id}`);
+      setContas((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error("Erro ao deletar conta:", error);
+      alert("Ocorreu um erro ao deletar a conta.");
+    }
   };
 
   return (
@@ -173,34 +185,41 @@ function Conta() {
         </section>
 
         <section className="receita-list">
-          {contas.map((item) => (
-            <article key={item.id} className="receita-item">
-              <div className="receita-item-main">
-                <div className="receita-badge" aria-hidden="true">{item.icone}</div>
-                <div className="receita-info">
-                  <div className="receita-title-row">
-                    <h3>{item.nome}</h3>
-                    <span className="receita-value">{formatCurrency(item.saldo)}</span>
-                  </div>
-                  <div className="receita-meta">
-                    {item.tipo} · {item.instituicao}
+          {contas.length === 0 ? (
+            <div className="receita-empty">Nenhuma conta cadastrada.</div>
+          ) : (
+            contas.map((item) => (
+              <article key={item.id} className="receita-item">
+                <div className="receita-item-main">
+                  {/* Se o banco não tiver o icone, colocamos um emoji padrão de banco 🏦 */}
+                  <div className="receita-badge" aria-hidden="true">{item.icone || '🏦'}</div>
+                  <div className="receita-info">
+                    <div className="receita-title-row">
+                      {/* Trocamos item.nome por item.nomeConta */}
+                      <h3>{item.nomeConta}</h3>
+                      {/* Trocamos item.saldo por item.saldoAtual */}
+                      <span className="receita-value">{formatCurrency(item.saldoAtual || 0)}</span>
+                    </div>
+                    <div className="receita-meta">
+                      {item.tipo} {item.instituicao ? `· ${item.instituicao}` : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="receita-actions">
-                <button className="receita-action-btn" onClick={() => openEdit(item)} aria-label={`Editar ${item.nome}`}>
-                  ✏️
-                </button>
-                <button className="receita-action-btn" onClick={() => handleDelete(item.id)} aria-label={`Excluir ${item.nome}`}>
-                  🗑️
-                </button>
-                <button className="receita-action-btn" aria-label={`Ver extrato de ${item.nome}`}>
-                  📄
-                </button>
-              </div>
-            </article>
-          ))}
+                <div className="receita-actions">
+                  <button className="receita-action-btn" onClick={() => openEdit(item)} aria-label={`Editar ${item.nomeConta}`}>
+                    ✏️
+                  </button>
+                  <button className="receita-action-btn" onClick={() => handleDelete(item.id)} aria-label={`Excluir ${item.nomeConta}`}>
+                    🗑️
+                  </button>
+                  <button className="receita-action-btn" aria-label={`Ver extrato de ${item.nomeConta}`}>
+                    📄
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
         </section>
       </div>
 
@@ -235,15 +254,6 @@ function Conta() {
                   onChange={(event) => setForm((prev) => ({ ...prev, tipo: event.target.value }))}
                   required
                 />
-              </div>
-
-              <div className="receita-field">
-                <label htmlFor="instituicao">Instituição Financeira</label>
-                <select id="instituicao" value={form.instituicao} onChange={(event) => setForm((prev) => ({ ...prev, instituicao: event.target.value }))}>
-                  {instituicoes.map((instituicao) => (
-                    <option key={instituicao} value={instituicao}>{instituicao}</option>
-                  ))}
-                </select>
               </div>
 
               <div className="receita-field">
