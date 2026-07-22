@@ -7,10 +7,10 @@ import NavBar from '../components/NavBar';
 import '../../styles/elements.css'
 import { useState } from "react"
 
-function Home() {
+function Home({ initialFormMode = null }) {
 
-    const [showForm, setShowForm] = useState(false)
-    const [formMode, setFormMode] = useState('login')
+    const [showForm, setShowForm] = useState(Boolean(initialFormMode))
+    const [formMode, setFormMode] = useState(initialFormMode || 'login')
 
     const openLoginForm = () => {
         setFormMode('login')

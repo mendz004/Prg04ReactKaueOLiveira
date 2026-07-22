@@ -47,7 +47,6 @@ const getCategoryIcon = (categoria) => {
     case 'TRANSPORTE': return '🚗';
     case 'SAUDE': return '🩺';
     case 'LAZER': return '🎉';
-    case 'EDUCACAO':
     case 'EDUCACAO': return '📚';
     case 'MORADIA': return '🏠';
     case 'INVESTIMENTOS': return '📈';
@@ -64,7 +63,6 @@ function Despesa() {
   const [search, setSearch] = useState('');
   const [mesSelecionado, setMesSelecionado] = useState('2026-07');
   const [showModal, setShowModal] = useState(false);
-  const [showAlert] = useState(true);
 
   const [form, setForm] = useState({
     descricao: '',

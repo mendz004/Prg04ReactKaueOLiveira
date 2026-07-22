@@ -169,8 +169,6 @@ export default function Relatorio() {
 
   const { categories, days, income, expense, balance } = useMemo(() => {
     const selectedMonth = '07'; 
-    const selectedYear = '2026';
-
     const filteredReceitas = receitas.filter((r) => {
       const data = r.data ? new Date(r.data) : null;
       const matchMonth = data ? String(data.getMonth() + 1).padStart(2, '0') === selectedMonth : true;

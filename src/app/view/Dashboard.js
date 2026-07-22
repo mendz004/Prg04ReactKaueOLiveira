@@ -3,7 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import style from './dashboard.module.css';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/Api';
 
 const dashboardNavItems = [
@@ -20,11 +20,17 @@ const dashboardNavItems = [
 const PALETTE = ['#4f9a7b', '#1e293b', '#f59e0b', '#a78bfa', '#ef4444', '#3b82f6', '#ec4899'];
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [receitas, setReceitas] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [objetivos, setObjetivos] = useState([]);
   const [orcamentos, setOrcamentos] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  function handleLogout() {
+    localStorage.clear();
+    navigate('/login', { replace: true });
+  }
 
   // Busca dados de todas as rotas do Spring Boot
   useEffect(() => {
@@ -203,6 +209,11 @@ function Dashboard() {
                 </Link>
               </li>
             ))}
+            <li className="nav-item d-flex align-items-center">
+              <button type="button" className={`btn btn-sm ${navbarStyles.logoutButton}`} onClick={handleLogout}>
+                Sair
+              </button>
+            </li>
           </ul>
         </div>
       </nav>

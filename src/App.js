@@ -31,6 +31,11 @@ function App() {
         />
 
         <Route
+          path="/login"
+          element={<Home initialFormMode="login" />}
+        />
+
+        <Route
           path="/dashboard"
           element={<Dashboard />}
         />

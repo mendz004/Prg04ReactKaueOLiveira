@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import '../../styles/receita.css';
@@ -44,23 +44,23 @@ function Cartao() {
   const [paymentForm, setPaymentForm] = useState({ conta: contasOrigem[0], valor: '' });
 
   // 1. BUSCAR CARTÕES DO BACK-END
-  const fetchCartoes = async () => {
+  const fetchCartoes = useCallback(async () => {
     try {
       const response = await axios.get('http://localhost:8080/cartoes');
       setCards(response.data);
 
       // Se tiver cartões e nenhum selecionado, seleciona o primeiro
-      if (response.data.length > 0 && !selectedCardId) {
-        setSelectedCardId(response.data[0].id);
+      if (response.data.length > 0) {
+        setSelectedCardId((currentCardId) => currentCardId ?? response.data[0].id);
       }
     } catch (error) {
       console.error("Erro ao buscar cartões do back-end", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCartoes();
-  }, []);
+  }, [fetchCartoes]);
 
   // Proteção de estado: pega o cartão selecionado ou nulo se não houver cartões
   const selectedCard = useMemo(() => {
@@ -176,13 +176,13 @@ function Cartao() {
     }
   }
 
-  // 4. PAGAR FATURA (Ainda simulado, pois depende de integração com a Conta)
   function handlePaymentSubmit(event) {
     event.preventDefault();
     alert("Função de pagamento em desenvolvimento!");
     setShowPaymentModal(false);
   }
 
+  // 4. PAGAR FATURA (Ainda simulado, pois depende de integração com a Conta)
   // Extrai apenas os dois dígitos do dia da data enviada pelo Java (ex: "2026-07-10T00:00:00" -> "10")
   const extrairDia = (valor) => {
     if (!valor) return '';
@@ -383,6 +383,54 @@ function Cartao() {
               <div className={styles.modalActions}>
                 <button type="button" className="headerButton" onClick={closeCardModal}>Cancelar</button>
                 <button type="submit" className="btn_comecar">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPaymentModal && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
+          <div className={styles.modalCard}>
+            <div className={styles.modalHeader}>
+              <h3 id="payment-modal-title">Pagar fatura</h3>
+              <button type="button" className={styles.modalClose} onClick={() => setShowPaymentModal(false)} aria-label="Fechar">✕</button>
+            </div>
+            <form className={styles.modalForm} onSubmit={handlePaymentSubmit}>
+              <label className={styles.field}>
+                <span>Tipo de pagamento</span>
+                <select value={paymentType} onChange={(event) => setPaymentType(event.target.value)}>
+                  <option value="total">Valor total</option>
+                  <option value="parcial">Outro valor</option>
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span>Conta de origem</span>
+                <select
+                  value={paymentForm.conta}
+                  onChange={(event) => setPaymentForm((currentForm) => ({ ...currentForm, conta: event.target.value }))}
+                >
+                  {contasOrigem.map((conta) => <option key={conta} value={conta}>{conta}</option>)}
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span>Valor (R$)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={paymentType === 'total' ? selectedCard?.faturaAtual || '' : paymentValue}
+                  readOnly={paymentType === 'total'}
+                  onChange={(event) => {
+                    setPaymentValue(event.target.value);
+                    setPaymentForm((currentForm) => ({ ...currentForm, valor: event.target.value }));
+                  }}
+                />
+              </label>
+              <div className={styles.modalActions}>
+                <button type="button" className="headerButton" onClick={() => setShowPaymentModal(false)}>Cancelar</button>
+                <button type="submit" className="btn_comecar">Confirmar pagamento</button>
               </div>
             </form>
           </div>

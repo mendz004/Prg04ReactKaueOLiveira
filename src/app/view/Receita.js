@@ -285,9 +285,7 @@ function Receita() {
     switch (categoria?.toUpperCase()) {
 
       case 'SALARIO':
-
       case 'SALÁRIO':
-
         return '💰';
 
       case 'FREELANCE':
