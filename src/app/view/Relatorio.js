@@ -152,11 +152,16 @@ export default function Relatorio() {
   }, []);
 
   const fetchReportData = async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
     try {
       const [resReceitas, resDespesas, resContas] = await Promise.allSettled([
-        axios.get(API_RECEITA_URL),
-        axios.get(API_DESPESA_URL),
-        axios.get(API_CONTA_URL)
+        axios.get(API_RECEITA_URL, config),
+        axios.get(API_DESPESA_URL, config),
+        axios.get(API_CONTA_URL, config)
       ]);
 
       if (resReceitas.status === 'fulfilled') setReceitas(resReceitas.value.data || []);

@@ -36,13 +36,33 @@ function Conta() {
   // 1. BUSCAR DADOS DO BACK-END
   useEffect(() => {
     async function carregarContas() {
+      // 1. Pega o usuário logado
+      const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+      
+      if (!usuarioStorage) {
+        return; // Se não tiver usuário, nem tenta buscar
+      }
+
+      const usuarioLogado = JSON.parse(usuarioStorage);
+
+      // 2. Monta o cabeçalho com o Token
+      const config = {
+          headers: {
+              Authorization: `Bearer ${usuarioLogado.token}`
+          }
+      };
+
       try {
-        const response = await api.get('/contas');
-        setContas(response.data);
+        // 3. Faz o GET enviando o Token de permissão!
+        const response = await api.get('/contas', config); 
+        
+        // Coloca as contas que vieram do banco na tela
+        setContas(response.data); 
       } catch (error) {
-        console.error("Erro ao buscar contas:", error);
+        console.error("Erro ao carregar as contas:", error);
       }
     }
+
     carregarContas();
   }, []);
 
@@ -61,8 +81,6 @@ function Conta() {
 
     if (!usuarioStorage) {
       alert("Sessão expirada ou usuário não encontrado. Por favor, faça login novamente.");
-      // Se quiser, pode redirecionar para a tela de login:
-      // window.location.href = '/';
       return;
     }
 
@@ -74,16 +92,25 @@ function Conta() {
       nomeConta: form.nome.trim(),
       tipo: form.tipo,
       saldoAtual: Number(form.saldo),
-      // Assumindo que o campo de ID que vem do seu back-end se chama "id"
       usuarioId: Number(usuarioLogado.id)
+    };
+
+    // 3. CONFIGURAR O CABEÇALHO COM O TOKEN
+    // Certifique-se de que a propriedade que guarda o token no seu objeto seja 'token'
+    const config = {
+        headers: {
+            Authorization: `Bearer ${usuarioLogado.token}` 
+        }
     };
 
     try {
       if (editingId) {
-        const response = await api.put(`/contas/${editingId}`, payload);
+        // Passando a 'config' como terceiro parâmetro no PUT
+        const response = await api.put(`/contas/${editingId}`, payload, config);
         setContas((prev) => prev.map((item) => (item.id === editingId ? response.data : item)));
       } else {
-        const response = await api.post('/contas', payload);
+        // Passando a 'config' como terceiro parâmetro no POST
+        const response = await api.post('/contas', payload, config);
         setContas((prev) => [response.data, ...prev]);
       }
 
@@ -92,7 +119,7 @@ function Conta() {
       setForm({
         nome: '',
         tipo: 'Conta Corrente',
-        instituicao: 'Nubank',
+        instituicao: 'Nubank', // Apenas mantive como estava no seu original
         saldo: ''
       });
     } catch (error) {
@@ -125,12 +152,39 @@ function Conta() {
   const handleDelete = async (id) => {
     if (!window.confirm("Tem certeza que deseja excluir esta conta? O saldo também será removido.")) return;
 
+    // 1. BUSCAR O USUÁRIO LOGADO PARA PEGAR O TOKEN
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+
+    if (!usuarioStorage) {
+      alert("Sessão expirada. Por favor, faça login novamente.");
+      return;
+    }
+
+    const usuarioLogado = JSON.parse(usuarioStorage);
+
+    // 2. CONFIGURAR O CABEÇALHO COM O TOKEN
+    const config = {
+        headers: {
+            Authorization: `Bearer ${usuarioLogado.token}`
+        }
+    };
+
     try {
-      await api.delete(`/contas/${id}`);
+      // 3. ENVIAR A REQUISIÇÃO DELETE COM AS CONFIGURAÇÕES DE CABEÇALHO
+      await api.delete(`/contas/${id}`, config);
+      
+      // Remove da lista na tela
       setContas((prev) => prev.filter((item) => item.id !== id));
+      
     } catch (error) {
       console.error("Erro ao deletar conta:", error);
-      alert("Ocorreu um erro ao deletar a conta.");
+      
+      // Tratamento extra caso o erro seja 403 (sem permissão) ou 401
+      if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+          alert("Você não tem permissão para deletar esta conta ou sua sessão expirou.");
+      } else {
+          alert("Ocorreu um erro ao deletar a conta.");
+      }
     }
   };
 

@@ -63,12 +63,12 @@ function Form({ onClose, mode = 'login' }) {
 
         try {
             if (isRegister) {
-                // CHAMA O BACK-END: Rota de Cadastro
-                await api.post('/usuarios/cadastrar', {
+                // CHAMA O BACK-END: Rota de Cadastro (Corrigido para '/usuarios')
+                await api.post('/usuarios', {
                     nome: nome.trim(),
                     email: email.trim(),
                     senha: senha.trim(),
-                    rendaMensal: parseFloat(rendaMensal) || 0 // Manda a renda como número
+                    rendaMensal: parseFloat(rendaMensal) || 0 
                 });
 
                 setProgress('100%');
@@ -78,13 +78,13 @@ function Form({ onClose, mode = 'login' }) {
                 }, 500);
 
             } else {
-                // CHAMA O BACK-END: Rota de Login
-                const response = await api.post('/usuarios/login', {
+                // CHAMA O BACK-END: Rota de Login (Corrigido para '/login' usando a instância 'api')
+                const response = await api.post('/login', {
                     email: email.trim(),
                     senha: senha.trim()
                 });
 
-                // Salva o usuário autenticado no navegador
+                // Salva o token (retornado pelo Spring) no navegador
                 localStorage.setItem('usuarioAppFinanceiro', JSON.stringify(response.data));
 
                 setProgress('100%');
@@ -98,7 +98,8 @@ function Form({ onClose, mode = 'login' }) {
             setProgress('0%'); // Reseta a barra
             setLoading(false);
             
-            if (error.response && error.response.status === 401) {
+            // Tratando erro 403 (Forbidden) ou 401 (Unauthorized) do Spring Security
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
                 setApiError('E-mail ou senha incorretos.');
             } else {
                 setApiError('Erro no servidor. Tente novamente mais tarde.');
@@ -121,7 +122,7 @@ function Form({ onClose, mode = 'login' }) {
                     </p>
 
                     {/* Exibe erro da API se houver */}
-                    {apiError && <div className="alert alert-danger" style={{ fontSize: '14px', padding: '8px' }}>{apiError}</div>}
+                    {apiError && <div className="alert alert-danger" style={{ fontSize: '14px', padding: '8px', color: 'red' }}>{apiError}</div>}
 
                     <form id="mlForm" onSubmit={handleSubmit} onReset={handleReset} noValidate>
                         
@@ -200,7 +201,6 @@ function Form({ onClose, mode = 'login' }) {
                             <span className={style.ml_btn_txt}>
                                 {loading ? 'Aguarde...' : (isRegister ? '✓ Cadastrar' : '✓ Entrar')}
                             </span>
-                            {}
                             <div className={style.ml_progress} style={{ width: progress }}></div>
                         </button>
 

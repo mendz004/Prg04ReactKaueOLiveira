@@ -35,12 +35,20 @@ function Dashboard() {
   // Busca dados de todas as rotas do Spring Boot
   useEffect(() => {
     const fetchData = async () => {
+      const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+      if (!usuarioStorage) {
+        setLoading(false);
+        return;
+      }
+      const usuarioLogado = JSON.parse(usuarioStorage);
+      const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
       try {
         const [resReceitas, resDespesas, resObjetivos, resOrcamentos] = await Promise.allSettled([
-          api.get('/receitas'),
-          api.get('/despesas'),
-          api.get('/objetivos'),
-          api.get('/orcamentos')
+          api.get('/receitas', config),
+          api.get('/despesas', config),
+          api.get('/objetivos', config),
+          api.get('/orcamentos', config)
         ]);
 
         if (resReceitas.status === 'fulfilled') {
@@ -193,7 +201,7 @@ function Dashboard() {
         </Link>
 
         <button
-          className="navbar-toggler" type="button" data-bs-toggle="collapse" 
+          className="navbar-toggler" type="button" data-bs-toggle="collapse"
           data-bs-target="#dashboardNav" aria-controls="dashboardNav" aria-expanded="false"
           aria-label="Toggle navigation"
         >
@@ -327,8 +335,12 @@ function Dashboard() {
           ) : (
             <div className={style.goalGrid}>
               {objetivos.map((goal, index) => {
-                const saved = Number(goal.valorAtual || goal.guardado || 0);
-                const target = Number(goal.valorMeta || goal.objetivo || 1);
+                // Procura o valor guardado/atual
+                const saved = Number(goal.valorAtual || goal.valorGuardado || goal.guardado || 0);
+
+                // Procura o valor da meta (incluindo goal.meta e goal.valorAlvo)
+                const target = Number(goal.meta || goal.valorMeta || goal.valorAlvo || goal.valorTotal || goal.valor || goal.objetivo || 1);
+
                 const percent = Math.min(100, Math.round((saved / target) * 100));
                 const color = PALETTE[index % PALETTE.length];
 

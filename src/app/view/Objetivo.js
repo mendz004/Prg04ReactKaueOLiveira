@@ -70,9 +70,14 @@ function Objetivo() {
   }, []);
 
   const fetchGoals = async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    if (!usuarioLogado?.token) return;
+
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
     try {
-      const res = await axios.get(API_OBJETIVO_URL);
-      console.log('Objetivos do Java:', res.data);
+      const res = await axios.get(API_OBJETIVO_URL, config);
       setGoals(res.data || []);
     } catch (err) {
       console.error('Erro ao buscar objetivos:', err);
@@ -80,8 +85,14 @@ function Objetivo() {
   };
 
   const fetchAccounts = async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    if (!usuarioLogado?.token) return;
+
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
     try {
-      const res = await axios.get(API_CONTA_URL);
+      const res = await axios.get(API_CONTA_URL, config);
       setAccounts(res.data || []);
       if (res.data && res.data.length > 0) {
         setDeposit((prev) => ({ ...prev, contaId: res.data[0].id }));
@@ -140,19 +151,19 @@ function Objetivo() {
   const saveGoal = async (event) => {
     event.preventDefault();
 
-    // Busca o usuário logado
     const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
-    let idDoUsuarioLogado = null;
-
-    if (usuarioStorage) {
-      const usuarioObj = JSON.parse(usuarioStorage);
-      idDoUsuarioLogado = usuarioObj.id;
+    if (!usuarioStorage) {
+      alert("Sessão expirada. Faça login novamente.");
+      return;
     }
 
-    if (!idDoUsuarioLogado) {
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    if (!usuarioLogado || !usuarioLogado.token) {
       alert("Erro: Você precisa estar logado para cadastrar um objetivo!");
       return;
     }
+
+    const idDoUsuarioLogado = usuarioLogado.id || usuarioLogado.usuarioId || null;
 
     const payload = {
       nome: form.nome.trim(),
@@ -166,11 +177,13 @@ function Objetivo() {
       usuarioId: idDoUsuarioLogado 
     };
 
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
     try {
       if (editingId) {
-        await axios.put(`${API_OBJETIVO_URL}/${editingId}`, payload);
+        await axios.put(`${API_OBJETIVO_URL}/${editingId}`, payload, config);
       } else {
-        await axios.post(API_OBJETIVO_URL, payload);
+        await axios.post(API_OBJETIVO_URL, payload, config);
       }
       setGoalModal(false);
       fetchGoals();
@@ -180,7 +193,6 @@ function Objetivo() {
     }
   };
 
-  // Função para deletar objetivo
   const deleteGoal = async (id) => {
     if (!id) {
       alert("Erro: ID do objetivo não foi encontrado!");
@@ -188,8 +200,12 @@ function Objetivo() {
     }
 
     if (window.confirm("Tem certeza que deseja excluir este objetivo?")) {
+      const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+      if (!usuarioStorage) return;
+      const usuarioLogado = JSON.parse(usuarioStorage);
+      const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
       try {
-        await axios.delete(`${API_OBJETIVO_URL}/${id}`);
+        await axios.delete(`${API_OBJETIVO_URL}/${id}`, config);
         fetchGoals();
       } catch (err) {
         console.error('Erro ao deletar objetivo:', err);
@@ -204,6 +220,20 @@ function Objetivo() {
     const value = Number(deposit.valor);
     if (!value || value <= 0) return;
 
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) {
+      alert("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    if (!usuarioLogado || !usuarioLogado.token) {
+      alert("Erro: Você precisa estar logado para efetuar um depósito!");
+      return;
+    }
+
+    const idDoUsuarioLogado = usuarioLogado.id || usuarioLogado.usuarioId || null;
+
     const novoValorAtual = Math.min(depositModal.valorAlvo, (depositModal.valorAtual || 0) + value);
     const estaConcluido = novoValorAtual >= depositModal.valorAlvo;
 
@@ -214,13 +244,6 @@ function Objetivo() {
       dataIso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00`;
     } else if (typeof rawDate === 'string') {
       dataIso = rawDate.includes('T') ? rawDate : `${rawDate}T00:00:00`;
-    }
-
-    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
-    let idDoUsuarioLogado = null;
-    if (usuarioStorage) {
-      const usuarioObj = JSON.parse(usuarioStorage);
-      idDoUsuarioLogado = usuarioObj.id;
     }
 
     const payload = {
@@ -234,9 +257,10 @@ function Objetivo() {
     };
 
     const targetId = depositModal.id || depositModal.idObjetivo;
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
 
     try {
-      await axios.put(`${API_OBJETIVO_URL}/${targetId}`, payload);
+      await axios.put(`${API_OBJETIVO_URL}/${targetId}`, payload, config);
       setDepositModal(null);
       setDeposit({ valor: '', contaId: accounts[0]?.id || '' });
       setCelebration(true);

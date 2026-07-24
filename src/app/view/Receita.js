@@ -127,41 +127,43 @@ function Receita() {
 
 
   useEffect(() => {
-
     async function carregarDados() {
 
+      // 1. Busca o usuário logado para extrair o token
+      const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+      
+      if (!usuarioStorage) {
+        console.warn("Usuário não autenticado. As listas não serão carregadas.");
+        return; 
+      }
+
+      const usuarioLogado = JSON.parse(usuarioStorage);
+
+      // 2. Monta a configuração de cabeçalho com o Token
+      const config = {
+        headers: {
+          Authorization: `Bearer ${usuarioLogado.token}`
+        }
+      };
+
+      // 3. Envia o 'config' nas chamadas da API
       try {
-
-        const responseReceitas = await api.get('/receitas');
-
+        const responseReceitas = await api.get('/receitas', config); 
         setReceitas(responseReceitas.data);
-
       } catch (error) {
-
-        console.error("Endpoint de Receitas ainda não existe ou deu erro (404):", error);
-
+        console.error("Endpoint de Receitas deu erro (provavelmente 403 ou 404):", error);
       }
-
-
 
       try {
-
-        const responseContas = await api.get('/contas');
-
+        const responseContas = await api.get('/contas', config); 
         setContasDisponiveis(responseContas.data);
-
       } catch (error) {
-
         console.error("Erro ao buscar contas:", error);
-
       }
-
     }
 
     carregarDados();
-
   }, []);
-
 
 
   const receitasFiltradas = useMemo(() => {
@@ -228,19 +230,28 @@ function Receita() {
 
     };
 
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = {
+      headers: {
+        Authorization: `Bearer ${usuarioLogado.token}`
+      }
+    };
+
 
 
     try {
 
       if (editingId) {
 
-        const response = await api.put(`/receitas/${editingId}`, payload);
+        const response = await api.put(`/receitas/${editingId}`, payload, config);
 
         setReceitas((prev) => prev.map((item) => (item.id === editingId ? response.data : item)));
 
       } else {
 
-        const response = await api.post('/receitas', payload);
+        const response = await api.post('/receitas', payload, config);
 
         setReceitas((prev) => [response.data, ...prev]);
 
@@ -359,6 +370,15 @@ function Receita() {
 
 
   const handleDelete = async (id) => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = {
+      headers: {
+        Authorization: `Bearer ${usuarioLogado.token}`
+      }
+    };
+
 
     if (!window.confirm("Tem certeza que deseja excluir esta receita?")) return;
 
@@ -366,7 +386,7 @@ function Receita() {
 
     try {
 
-      await api.delete(`/receitas/${id}`);
+      await api.delete(`/receitas/${id}`, config);
 
       setReceitas((prev) => prev.filter((item) => item.id !== id));
 

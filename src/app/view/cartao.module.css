@@ -11,7 +11,20 @@
 .carouselTrack {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.carouselTrack::-webkit-scrollbar {
+  height: 6px;
+}
+
+.carouselTrack::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
 }
 
 .cardTab {
@@ -19,12 +32,13 @@
   background: rgba(255, 255, 255, 0.92);
   color: var(--cor-02);
   border-radius: 999px;
-  padding: 10px 14px;
+  padding: 9px 16px 9px 12px;
   font-weight: 700;
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -34,9 +48,22 @@
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
 }
 
+.cardTab:focus-visible {
+  outline: 2px solid var(--cor-01);
+  outline-offset: 2px;
+}
+
 .cardTabActive {
   border-color: rgba(79, 154, 123, 0.45);
   box-shadow: 0 10px 22px rgba(79, 154, 123, 0.15);
+}
+
+.cardTabDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 
 .cardTabName {
@@ -49,22 +76,57 @@
 }
 
 .creditCard {
+  position: relative;
+  overflow: hidden;
   border-radius: 28px;
-  padding: 24px;
+  padding: 28px;
   min-height: 240px;
   color: white;
-  box-shadow: 0 24px 42px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 24px 48px -12px rgba(30, 41, 135, 0.45), 0 8px 20px rgba(15, 23, 42, 0.25);
   display: grid;
-  gap: 28px;
+  gap: 24px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.creditCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 56px -10px rgba(30, 41, 135, 0.55), 0 10px 24px rgba(15, 23, 42, 0.3);
+}
+
+.cardSheen {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0) 70%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
 }
 
 .cardTopRow,
-.cardFooter,
-.cardMiddle {
+.cardFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.cardFooter {
+  align-items: flex-end;
+}
+
+.cardMiddle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
 }
 
 .cardMenuWrap {
@@ -78,17 +140,25 @@
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
   color: white;
   cursor: pointer;
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   line-height: 1;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .cardMenuButton:hover,
 .cardMenuButton:focus-visible {
   background: rgba(255, 255, 255, 0.28);
+  transform: scale(1.05);
+}
+
+.cardMenuButton:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
 }
 
 .cardMenu {
@@ -96,11 +166,23 @@
   top: calc(100% + 8px);
   right: 0;
   z-index: 2;
-  min-width: 160px;
+  min-width: 168px;
   padding: 6px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: white;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.28);
+  animation: menuIn 0.15s ease;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .cardMenu button {
@@ -129,29 +211,68 @@
   opacity: 0.5;
 }
 
-.cardBrand,
-.cardChip,
-.cardLabel {
+.cardBrand {
+  margin: 0 0 4px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  font-size: 0.75rem;
-  opacity: 0.92;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.68;
+}
+
+.cardChip {
+  width: 46px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f7e7b8 0%, #d9b56a 55%, #a9791f 100%);
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  padding: 6px 8px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.cardChip span {
+  display: block;
+  height: 1px;
+  background: rgba(120, 84, 24, 0.55);
+  border-radius: 1px;
+}
+
+.cardLabel {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.7;
 }
 
 .cardName {
-  font-size: 1.18rem;
+  font-size: 1.55rem;
   font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 .cardNumber {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
+  margin: 10px 0 0;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  opacity: 0.55;
 }
 
 .cardValue {
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.05rem;
   margin-top: 4px;
+}
+
+.cardDates {
+  display: flex;
+  gap: 22px;
 }
 
 .summaryCard {
@@ -188,16 +309,39 @@
 }
 
 .statusBadge {
-  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
   border-radius: 999px;
   background: rgba(79, 154, 123, 0.14);
   color: var(--cor-01);
   font-weight: 800;
 }
 
+.statusBadge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .statusDanger {
   background: rgba(220, 38, 38, 0.12);
   color: #dc2626;
+}
+
+.progressLabelRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.progressPercentage {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
 }
 
 .progressWrap {
@@ -218,6 +362,15 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #4f46e5 0%, #1d4ed8 100%);
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.progressWarning {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.progressDanger {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
 }
 
 .progressMeta {
@@ -252,6 +405,10 @@
 
 .actionsRow button {
   min-width: 170px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .extratoPanel {
@@ -291,6 +448,12 @@
   padding: 9px 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.periodButton:focus-visible {
+  outline: 2px solid var(--cor-01);
+  outline-offset: 2px;
 }
 
 .periodButtonActive {
@@ -312,6 +475,12 @@
   padding: 12px 14px;
   border-radius: 16px;
   background: #f8fafc;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.extratoItem:hover {
+  background: #f1f5f9;
+  transform: translateX(2px);
 }
 
 .extratoItemMain {
@@ -328,6 +497,7 @@
   place-items: center;
   background: rgba(79, 154, 123, 0.14);
   font-size: 1.05rem;
+  flex-shrink: 0;
 }
 
 .extratoTitle {
@@ -338,8 +508,20 @@
 
 .extratoMeta {
   margin: 2px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #64748b;
   font-size: 0.88rem;
+}
+
+.extratoCategoria {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #475569;
 }
 
 .extratoValue {
@@ -356,6 +538,11 @@
   border-radius: 16px;
 }
 
+.emptyWrapper {
+  text-align: center;
+  margin-top: 50px;
+}
+
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -364,6 +551,16 @@
   place-items: center;
   padding: 16px;
   z-index: 1200;
+  animation: overlayIn 0.18s ease;
+}
+
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modalCard {
@@ -372,6 +569,18 @@
   border-radius: 24px;
   padding: 20px;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.22);
+  animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modalHeader {
@@ -392,6 +601,18 @@
   font-size: 1.15rem;
   cursor: pointer;
   color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.modalClose:hover,
+.modalClose:focus-visible {
+  background: rgba(15, 23, 42, 0.06);
+  color: #1e293b;
 }
 
 .modalForm {
@@ -413,6 +634,14 @@
   padding: 10px 12px;
   font-size: 0.95rem;
   background: rgba(248, 250, 252, 0.95);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--cor-01);
+  box-shadow: 0 0 0 3px rgba(79, 154, 123, 0.18);
 }
 
 .inlineFields {
@@ -477,12 +706,34 @@
 
   .creditCard {
     min-height: 220px;
+    padding: 22px;
   }
 
-  .cardMiddle,
-  .cardTopRow,
   .cardFooter {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
+  }
+
+  .cardDates {
+    gap: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .creditCard,
+  .cardMenuButton,
+  .cardTab,
+  .extratoItem,
+  .progressBar,
+  .modalOverlay,
+  .modalCard,
+  .cardMenu {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .creditCard:hover {
+    transform: none;
   }
 }

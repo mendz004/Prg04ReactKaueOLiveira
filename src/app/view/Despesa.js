@@ -5,7 +5,7 @@ import '../../styles/receita.css';
 import '../../styles/buttons.css';
 import navbarStyles from '../components/navBar.module.css';
 
-const categorias = ['ALIMENTAÇÃO', 'TRANSPORTE', 'SAUDE', 'LAZER', 'EDUCACAO', 'MORADIA', 'INVESTIMENTOS', 'OUTROS'];
+const categorias = ['ALIMENTACAO', 'TRANSPORTE', 'SAUDE', 'LAZER', 'EDUCACAO', 'MORADIA', 'INVESTIMENTOS', 'OUTROS'];
 
 const dashboardNavItems = [
   { label: 'Dashboard', path: '/dashboard' },
@@ -50,7 +50,8 @@ const getCategoryIcon = (categoria) => {
     case 'EDUCACAO': return '📚';
     case 'MORADIA': return '🏠';
     case 'INVESTIMENTOS': return '📈';
-    case 'ALIMENTACAO': return '🛒';
+    case 'ALIMENTACAO':
+    case 'ALIMENTAÇÃO': return '🛒';
     default: return '💸';
   }
 };
@@ -58,7 +59,7 @@ const getCategoryIcon = (categoria) => {
 function Despesa() {
   const [despesas, setDespesas] = useState([]);
   const [contas, setContas] = useState([]);
-  const [cartoes, setCartoes] = useState([]); // Hook movido para dentro do componente corretamente
+  const [cartoes, setCartoes] = useState([]);
 
   const [search, setSearch] = useState('');
   const [mesSelecionado, setMesSelecionado] = useState('2026-07');
@@ -75,118 +76,165 @@ function Despesa() {
 
   const [editingId, setEditingId] = useState(null);
 
-  // 1. BUSCAR DADOS DO BACK-END
+  // 1. BUSCAR DADOS DO BACK-END (Com Parse Forçado)
   const fetchDespesas = async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
     try {
-      const response = await axios.get('http://localhost:8080/despesas');
-      setDespesas(response.data);
+      const response = await axios.get('http://localhost:8080/despesas', config);
+
+      let dados = response.data;
+
+      // CONVERSÃO MÁGICA: Se o Spring Boot enviou como "Texto", transformamos em Array
+      if (typeof dados === 'string') {
+        try {
+          dados = JSON.parse(dados);
+        } catch (e) {
+          console.error("Erro ao tentar converter o texto do backend para JSON:", e);
+          dados = [];
+        }
+      }
+
+      console.log(">>> Dados processados como Array:", dados);
+
+      if (Array.isArray(dados)) {
+        setDespesas(dados);
+      } else if (dados && Array.isArray(dados.content)) {
+        setDespesas(dados.content);
+      } else {
+        setDespesas([]);
+      }
     } catch (error) {
       console.error("Erro ao buscar despesas do back-end", error);
+      setDespesas([]);
     }
   };
 
   const fetchContas = async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
     try {
-      const response = await axios.get('http://localhost:8080/contas');
-      setContas(response.data);
+      const response = await axios.get('http://localhost:8080/contas', config);
+      const data = Array.isArray(response.data) ? response.data : (response.data?.content || []);
+      setContas(data);
     } catch (error) {
       console.error("Erro ao buscar contas do back-end", error);
+      setContas([]);
     }
   };
 
   const fetchCartoes = async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
     try {
-      const response = await axios.get('http://localhost:8080/cartoes');
-      setCartoes(response.data);
+      const response = await axios.get('http://localhost:8080/cartoes', config);
+      const data = Array.isArray(response.data) ? response.data : (response.data?.content || []);
+      setCartoes(data);
     } catch (error) {
       console.error("Erro ao buscar cartões do back-end", error);
+      setCartoes([]);
     }
   };
 
   useEffect(() => {
     fetchDespesas();
     fetchContas();
-    fetchCartoes(); // Busca os cartões ao carregar a página
+    fetchCartoes();
   }, []);
 
-
-
   const despesasFiltradas = useMemo(() => {
+    if (!Array.isArray(despesas)) return [];
+
     return despesas.filter((item) => {
-      if (!item.data) return false;
+      if (!item) return false;
 
-      let ano = '';
-      let mes = '';
+      // Se selecionou "TODOS", ignora a checagem de mês/ano
+      let matchesMonth = true;
 
-      if (Array.isArray(item.data)) {
-        // Se o Java mandar como Array: [2026, 7, 20]
-        ano = item.data[0];
-        mes = String(item.data[1]).padStart(2, '0');
-      } else {
-        const dateStr = String(item.data);
+      if (mesSelecionado !== 'TODOS' && item.data) {
+        let ano = '';
+        let mes = '';
 
-        if (dateStr.includes('/')) {
-          // Se o Java mandar formato BR: "20/07/2026"
-          const partes = dateStr.split(' ')[0].split('/');
-          if (partes.length >= 3) {
-            ano = partes[2];
-            mes = partes[1];
-          }
-        } else if (dateStr.includes('-')) {
-          // Se o Java mandar ISO: "2026-07-20T00:00:00"
-          const partes = dateStr.split('T')[0].split('-');
-          if (partes.length >= 3) {
-            ano = partes[0];
-            mes = partes[1];
+        if (Array.isArray(item.data)) {
+          ano = item.data[0];
+          mes = String(item.data[1]).padStart(2, '0');
+        } else {
+          const dateStr = String(item.data);
+          if (dateStr.includes('/')) {
+            const partes = dateStr.split(' ')[0].split('/');
+            if (partes.length >= 3) {
+              ano = partes[2];
+              mes = partes[1];
+            }
+          } else if (dateStr.includes('-')) {
+            const partes = dateStr.split('T')[0].split('-');
+            if (partes.length >= 3) {
+              ano = partes[0];
+              mes = partes[1];
+            }
           }
         }
+
+        const itemMonth = `${ano}-${mes}`;
+        matchesMonth = (itemMonth === mesSelecionado);
       }
 
-      const itemMonth = `${ano}-${mes}`;
-      const matchesMonth = itemMonth === mesSelecionado;
-      const matchesSearch = item.descricao?.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = (item.descricao || '').toLowerCase().includes(search.toLowerCase());
 
       return matchesMonth && matchesSearch;
     });
   }, [despesas, search, mesSelecionado]);
 
   const totalGasto = useMemo(() => {
+    if (!Array.isArray(despesasFiltradas)) return 0;
     return despesasFiltradas.reduce((sum, item) => sum + Number(item.valor || 0), 0);
   }, [despesasFiltradas]);
+
+  const isCartao = form.formaPagamento === 'CARTAO_CREDITO';
+  const isDinheiro = form.formaPagamento === 'DINHEIRO'; // Variável para controlar se é dinheiro
 
   // 2. CADASTRAR OU ATUALIZAR DESPESA
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.descricao.trim() || !form.valor) return;
-
-    // Tratamento Inteligente da Forma de Pagamento
-    let formaPagamentoFinal = form.formaPagamento;
-    let cartaoIdFinal = null;
-
-    if (form.formaPagamento.startsWith('CARTAO_')) {
-      formaPagamentoFinal = 'CARTAO_CREDITO'; // Nome que o seu backend espera
-      cartaoIdFinal = Number(form.formaPagamento.replace('CARTAO_', ''));
+    // Validação ajustada: origem só é obrigatória se não for Dinheiro
+    if (!form.descricao.trim() || !form.valor || (!isDinheiro && !form.origem)) {
+      alert("Por favor, preencha todos os campos obrigatórios.");
+      return;
     }
 
     const payload = {
       descricao: form.descricao.trim(),
       data: `${form.data}T00:00:00`,
-      formaPagamento: formaPagamentoFinal,
+      formaPagamento: form.formaPagamento,
       categoria: form.categoria,
-      contaId: Number(form.origem),
       valor: Number(form.valor),
-      cartaoId: cartaoIdFinal,
+      // Se for dinheiro ou cartão, contaId vai nulo. Se for PIX/BOLETO, envia a origem
+      contaId: (!isCartao && !isDinheiro) ? Number(form.origem) : null,
+      cartaoId: isCartao ? Number(form.origem) : null,
       efetivada: true
     };
 
-  
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) {
+      alert("Sessão expirada. Faça login novamente.");
+      return;
+    }
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
 
     try {
       if (editingId) {
-        await axios.put(`http://localhost:8080/despesas/${editingId}`, payload);
+        await axios.put(`http://localhost:8080/despesas/${editingId}`, payload, config);
       } else {
-        await axios.post('http://localhost:8080/despesas', payload);
+        await axios.post('http://localhost:8080/despesas', payload, config);
       }
 
       fetchDespesas();
@@ -196,13 +244,13 @@ function Despesa() {
         descricao: '',
         data: new Date().toISOString().slice(0, 10),
         formaPagamento: 'PIX',
-        categoria: 'ALIMENTACAO',
-        origem: 'Itau',
+        categoria: 'ALIMENTAÇÃO',
+        origem: '',
         valor: ''
       });
     } catch (error) {
       console.error("Erro ao salvar despesa", error);
-      alert("Houve um erro ao salvar a despesa. Verifique o console.");
+      alert("Houve um erro ao salvar a despesa. Verifique se o seu token não expirou.");
     }
   };
 
@@ -213,7 +261,7 @@ function Despesa() {
       data: new Date().toISOString().slice(0, 10),
       formaPagamento: 'PIX',
       categoria: 'ALIMENTAÇÃO',
-      origem: '', // <-- DEIXE VAZIO AQUI
+      origem: '',
       valor: ''
     });
     setShowModal(true);
@@ -229,13 +277,15 @@ function Despesa() {
       formattedDate = String(item.data).split('T')[0];
     }
 
+    const ehDespesaCartao = item.formaPagamento === 'CARTAO_CREDITO' || item.cartao != null;
+
     setForm({
-      descricao: item.descricao,
+      descricao: item.descricao || '',
       data: formattedDate,
-      formaPagamento: item.formaPagamento || 'PIX',
-      categoria: item.categoria,
-      origem: item.origem,
-      valor: String(item.valor)
+      formaPagamento: ehDespesaCartao ? 'CARTAO_CREDITO' : (item.formaPagamento || 'PIX'),
+      categoria: item.categoria || 'ALIMENTAÇÃO',
+      origem: ehDespesaCartao ? (item.cartao?.id || item.cartaoId || '') : (item.conta?.id || item.contaId || ''),
+      valor: String(item.valor || '')
     });
     setShowModal(true);
   };
@@ -243,8 +293,12 @@ function Despesa() {
   // 3. EXCLUIR DESPESA
   const handleDelete = async (id) => {
     if (window.confirm("Deseja realmente excluir esta despesa?")) {
+      const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+      if (!usuarioStorage) return;
+      const usuarioLogado = JSON.parse(usuarioStorage);
+      const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
       try {
-        await axios.delete(`http://localhost:8080/despesas/${id}`);
+        await axios.delete(`http://localhost:8080/despesas/${id}`, config);
         fetchDespesas();
       } catch (error) {
         console.error("Erro ao excluir", error);
@@ -284,7 +338,6 @@ function Despesa() {
           </div>
         </nav>
 
-
         <header className="receita-header">
           <div>
             <p className="receita-kicker">Saídas de dinheiro</p>
@@ -293,6 +346,7 @@ function Despesa() {
 
           <div className="receita-header-actions">
             <select className="receita-select" value={mesSelecionado} onChange={(event) => setMesSelecionado(event.target.value)}>
+              <option value="TODOS">Todos os meses</option>
               <option value="2026-07">Julho 2026</option>
               <option value="2026-06">Junho 2026</option>
               <option value="2026-05">Maio 2026</option>
@@ -397,23 +451,21 @@ function Despesa() {
                 />
               </div>
 
-              {/* SELECT MISTO DE FORMAS DE PAGAMENTO */}
               <div className="receita-field">
                 <label htmlFor="formaPagamento">Forma de pagamento</label>
                 <select
                   id="formaPagamento"
                   value={form.formaPagamento}
-                  onChange={(event) => setForm((prev) => ({ ...prev, formaPagamento: event.target.value }))}
+                  onChange={(event) => setForm((prev) => ({
+                    ...prev,
+                    formaPagamento: event.target.value,
+                    origem: ''
+                  }))}
                 >
                   <option value="PIX">PIX</option>
-                  <option value="DINHEIRO">DINHEIRO</option>
-                  <option value="BOLETO">BOLETO</option>
-
-                  {cartoes.map((cartao) => (
-                    <option key={cartao.id} value={`CARTAO_${cartao.id}`}>
-                      Cartão: {cartao.nome}
-                    </option>
-                  ))}
+                  <option value="DINHEIRO">Dinheiro</option>
+                  <option value="BOLETO">Boleto</option>
+                  <option value="CARTAO_CREDITO">Cartão de Crédito</option>
                 </select>
               </div>
 
@@ -426,23 +478,36 @@ function Despesa() {
                 </select>
               </div>
 
-              <div className="receita-field">
-                <label htmlFor="origem">Origem do Pagamento (Conta)</label>
-                <select
-                  id="origem"
-                  value={form.origem}
-                  onChange={(event) => setForm((prev) => ({ ...prev, origem: event.target.value }))}
-                >
-                  <option value="" disabled>Selecione uma conta...</option>
-
-                  {contas.map((conta) => (
-                    <option key={conta.id} value={conta.id}>
-                      {conta.nomeConta}
+              {/* Renderização condicional: o campo desaparece se a forma de pagamento for DINHEIRO */}
+              {!isDinheiro && (
+                <div className="receita-field">
+                  <label htmlFor="origem">
+                    {isCartao ? 'Selecione o Cartão' : 'Origem do Pagamento (Conta)'}
+                  </label>
+                  <select
+                    id="origem"
+                    value={form.origem}
+                    onChange={(event) => setForm((prev) => ({ ...prev, origem: event.target.value }))}
+                  >
+                    <option value="" disabled>
+                      {isCartao ? 'Selecione um cartão...' : 'Selecione uma conta...'}
                     </option>
-                  ))}
 
-                </select>
-              </div>
+                    {isCartao
+                      ? cartoes.map((cartao) => (
+                        <option key={cartao.id} value={cartao.id}>
+                          Cartão: {cartao.nome}
+                        </option>
+                      ))
+                      : contas.map((conta) => (
+                        <option key={conta.id} value={conta.id}>
+                          Conta: {conta.nomeConta}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+              )}
 
               <div className="receita-form-actions">
                 <button type="button" className="headerButton" onClick={() => setShowModal(false)}>Cancelar</button>
@@ -450,10 +515,9 @@ function Despesa() {
               </div>
             </form>
           </div>
-        </div >
-      )
-      }
-    </div >
+        </div>
+      )}
+    </div>
   );
 }
 

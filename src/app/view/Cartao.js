@@ -16,8 +16,8 @@ const dashboardNavItems = [
   { label: 'Relatório', path: '/relatorio' }
 ];
 
-const contasOrigem = ['Conta Corrente', 'NuConta', 'Itaú', 'Caixa'];
 const periodos = [{ value: 'atual', label: 'Fatura atual' }];
+const CARD_GRADIENT_FALLBACK = 'linear-gradient(135deg, #0f172a 0%, #29348a 52%, #4338ca 100%)';
 
 function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', {
@@ -26,8 +26,32 @@ function formatCurrency(value) {
   }).format(value || 0);
 }
 
+// Extrai apenas os dois dígitos do dia (ex: "2026-07-10T00:00:00" -> "10")
+const extrairDia = (valor) => {
+  if (!valor) return '';
+  const str = String(valor);
+  if (str.includes('-')) {
+    const partes = str.split('T')[0].split('-');
+    if (partes.length === 3) return partes[2];
+  }
+  return str;
+};
+
+// Formata data ISO para o padrão brasileiro DD/MM/AAAA
+const formatarDataBR = (valor) => {
+  if (!valor) return '';
+  const str = String(valor);
+  if (str.includes('T')) {
+    const [dataPart] = str.split('T');
+    const [ano, mes, dia] = dataPart.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+  return str;
+};
+
 function Cartao() {
-  const [cards, setCards] = useState([]); // Agora começa vazio!
+  const [cards, setCards] = useState([]);
+  const [contasOrigem, setContasOrigem] = useState([]); // Busca do back-end
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [periodoSelecionado] = useState('atual');
 
@@ -41,43 +65,86 @@ function Cartao() {
   const [paymentType, setPaymentType] = useState('total');
   const [paymentValue, setPaymentValue] = useState('');
   const [newCard, setNewCard] = useState({ nome: '', limiteTotal: '', fechamento: '', vencimento: '' });
-  const [paymentForm, setPaymentForm] = useState({ conta: contasOrigem[0], valor: '' });
+  const [paymentForm, setPaymentForm] = useState({ contaId: '', valor: '' });
 
-  // 1. BUSCAR CARTÕES DO BACK-END
+  // 1. BUSCAR CARTÕES E CONTAS DO BACK-END
   const fetchCartoes = useCallback(async () => {
-    try {
-      const response = await axios.get('http://localhost:8080/cartoes');
-      setCards(response.data);
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    if (!usuarioLogado?.token) return;
 
-      // Se tiver cartões e nenhum selecionado, seleciona o primeiro
-      if (response.data.length > 0) {
-        setSelectedCardId((currentCardId) => currentCardId ?? response.data[0].id);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
+    try {
+      const response = await axios.get('http://localhost:8080/cartoes', config);
+      
+      let dados = response.data;
+      if (typeof dados === 'string') {
+        try {
+          dados = JSON.parse(dados);
+        } catch (e) {
+          console.error("Erro ao converter cartões:", e);
+          dados = [];
+        }
+      }
+
+      const listaCartoes = Array.isArray(dados) ? dados : (dados.content || []);
+      setCards(listaCartoes);
+
+      if (listaCartoes.length > 0) {
+        setSelectedCardId((currentCardId) => currentCardId ?? listaCartoes[0].id);
       }
     } catch (error) {
       console.error("Erro ao buscar cartões do back-end", error);
     }
   }, []);
 
+  const fetchContas = useCallback(async () => {
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
+    try {
+      const response = await axios.get('http://localhost:8080/contas', config);
+      const listaContas = Array.isArray(response.data) ? response.data : (response.data.content || []);
+      setContasOrigem(listaContas);
+      
+      if (listaContas.length > 0) {
+        setPaymentForm(prev => ({ ...prev, contaId: listaContas[0].id }));
+      }
+    } catch (error) {
+      console.error("Erro ao buscar contas", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCartoes();
-  }, [fetchCartoes]);
+    fetchContas();
+  }, [fetchCartoes, fetchContas]);
 
-  // Proteção de estado: pega o cartão selecionado ou nulo se não houver cartões
   const selectedCard = useMemo(() => {
     if (cards.length === 0) return null;
     return cards.find((card) => card.id === selectedCardId) || cards[0];
   }, [cards, selectedCardId]);
 
-  // Cálculos dinâmicos (protegidos contra null)
-  const limiteDisponivel = selectedCard ? (selectedCard.limiteTotal || 0) - (selectedCard.limiteUsado || 0) : 0;
-  const percentualUso = selectedCard && selectedCard.limiteTotal
-    ? Math.min(100, Math.round(((selectedCard.limiteUsado || 0) / selectedCard.limiteTotal) * 100))
-    : 0;
+  // Pega as despesas do cartão
+  const despesasDoCartao = useMemo(() => {
+    if (!selectedCard) return [];
+    return selectedCard.despesas || selectedCard.lancamentos || [];
+  }, [selectedCard]);
 
-  const lancamentosFiltrados = useMemo(() => {
-    if (!selectedCard || !selectedCard.lancamentos) return [];
-    return selectedCard.lancamentos.filter((item) => item.period === periodoSelecionado);
-  }, [periodoSelecionado, selectedCard]);
+  // Calcula a soma da fatura atual em tempo real
+  const faturaAtual = useMemo(() => {
+    return despesasDoCartao.reduce((acc, item) => acc + (Number(item.valor) || 0), 0);
+  }, [despesasDoCartao]);
+
+  const limiteDisponivel = selectedCard ? (selectedCard.limiteTotal || 0) - faturaAtual : 0;
+  
+  const percentualUso = selectedCard && selectedCard.limiteTotal
+    ? Math.min(100, Math.round((faturaAtual / selectedCard.limiteTotal) * 100))
+    : 0;
 
   // Ações de Modal
   function openNewCardModal() {
@@ -90,10 +157,10 @@ function Cartao() {
     if (!selectedCard) return;
     setEditingCardId(selectedCard.id);
     setNewCard({
-      nome: selectedCard.nome,
-      limiteTotal: String(selectedCard.limiteTotal),
-      fechamento: String(selectedCard.fechamento),
-      vencimento: String(selectedCard.vencimento)
+      nome: selectedCard.nome || '',
+      limiteTotal: String(selectedCard.limiteTotal || ''),
+      fechamento: extrairDia(selectedCard.diaFechamento || selectedCard.fechamento),
+      vencimento: extrairDia(selectedCard.diaVencimento || selectedCard.vencimento)
     });
     setShowCardMenu(false);
     setShowCardModal(true);
@@ -106,37 +173,37 @@ function Cartao() {
   }
 
   // 2. CADASTRAR OU EDITAR CARTÃO NO BACK-END
-  // 2. CADASTRAR OU EDITAR CARTÃO NO BACK-END
   async function handleCreateCard(event) {
     event.preventDefault();
+
     if (!newCard.nome.trim() || !newCard.limiteTotal || !newCard.fechamento || !newCard.vencimento) {
+      alert("Por favor, preencha todos os campos.");
       return;
     }
 
-    // Como o Java espera um 'java.util.Date', precisamos montar uma data completa.
-    // Vamos usar o ano e o mês atuais, e encaixar o dia que o usuário digitou.
-    const dataAtual = new Date();
-    const ano = dataAtual.getFullYear();
-    const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
-
-    // Garante que o dia terá 2 dígitos (ex: '5' vira '05')
-    const diaFechamentoFormatado = String(newCard.fechamento).padStart(2, '0');
-    const diaVencimentoFormatado = String(newCard.vencimento).padStart(2, '0');
-
     const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
-
-    let idDoUsuarioLogado = null;
-    if (usuarioStorage) {
-      const usuarioObj = JSON.parse(usuarioStorage);
-      idDoUsuarioLogado = usuarioObj.id; // Ou o nome do campo que guarda o ID
+    if (!usuarioStorage) {
+      alert("Sessão expirada. Faça login novamente.");
+      return;
     }
 
-    if (!idDoUsuarioLogado) {
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    if (!usuarioLogado || !usuarioLogado.token) {
       alert("Erro: Você precisa estar logado para cadastrar um cartão!");
       return;
     }
 
-    // Montando o pacote EXATAMENTE como o CartaoPostDto pede
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
+    const dataAtual = new Date();
+    const ano = dataAtual.getFullYear();
+    const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
+
+    const diaFechamentoFormatado = String(newCard.fechamento).padStart(2, '0');
+    const diaVencimentoFormatado = String(newCard.vencimento).padStart(2, '0');
+
+    const idDoUsuarioLogado = usuarioLogado.id || usuarioLogado.usuarioId || null;
+
     const payload = {
       nome: newCard.nome.trim(),
       limiteTotal: Number(newCard.limiteTotal),
@@ -147,16 +214,16 @@ function Cartao() {
 
     try {
       if (editingCardId) {
-        await axios.put(`http://localhost:8080/cartoes/${editingCardId}`, payload);
+        await axios.put(`http://localhost:8080/cartoes/${editingCardId}`, payload, config);
       } else {
-        await axios.post('http://localhost:8080/cartoes', payload);
+        await axios.post('http://localhost:8080/cartoes', payload, config);
       }
 
-      fetchCartoes(); // Atualiza a lista com o ID real do banco
+      fetchCartoes();
       closeCardModal();
     } catch (error) {
       console.error("Erro ao salvar cartão", error);
-      alert("Houve um erro ao salvar o cartão. Verifique o console.");
+      alert("Houve um erro ao salvar o cartão. Verifique se a sessão expirou.");
     }
   }
 
@@ -164,10 +231,13 @@ function Cartao() {
   async function handleDeleteCard() {
     if (!selectedCard || !window.confirm("Deseja realmente excluir este cartão?")) return;
 
-    try {
-      await axios.delete(`http://localhost:8080/cartoes/${selectedCard.id}`);
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    if (!usuarioStorage) return;
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
 
-      // Limpa a seleção e busca a lista atualizada
+    try {
+      await axios.delete(`http://localhost:8080/cartoes/${selectedCard.id}`, config);
       setSelectedCardId(null);
       fetchCartoes();
       setShowCardMenu(false);
@@ -176,19 +246,43 @@ function Cartao() {
     }
   }
 
-  function handlePaymentSubmit(event) {
+  // 4. PAGAR FATURA
+  async function handlePaymentSubmit(event) {
     event.preventDefault();
-    alert("Função de pagamento em desenvolvimento!");
-    setShowPaymentModal(false);
-  }
 
-  // 4. PAGAR FATURA (Ainda simulado, pois depende de integração com a Conta)
-  // Extrai apenas os dois dígitos do dia da data enviada pelo Java (ex: "2026-07-10T00:00:00" -> "10")
-  const extrairDia = (valor) => {
-    if (!valor) return '';
-    if (String(valor).includes('-')) return String(valor).substring(8, 10);
-    return valor;
-  };
+    if (!paymentForm.contaId) {
+      alert("Por favor, selecione uma conta de origem.");
+      return;
+    }
+
+    const valorDoPagamento = paymentType === 'total' ? faturaAtual : Number(paymentValue);
+
+    if (valorDoPagamento <= 0) {
+      alert("O valor do pagamento deve ser maior que zero.");
+      return;
+    }
+
+    const usuarioStorage = localStorage.getItem('usuarioAppFinanceiro');
+    const usuarioLogado = JSON.parse(usuarioStorage);
+    const config = { headers: { Authorization: `Bearer ${usuarioLogado.token}` } };
+
+    const payload = {
+      contaId: paymentForm.contaId,
+      valor: valorDoPagamento
+    };
+
+    try {
+      await axios.post(`http://localhost:8080/cartoes/${selectedCard.id}/pagar-fatura`, payload, config);
+      alert("Fatura paga com sucesso!");
+      setShowPaymentModal(false);
+      setPaymentValue('');
+      fetchCartoes(); // Atualiza a tela para mostrar a fatura zerada e o limite restaurado
+      fetchContas(); // Atualiza o saldo das contas
+    } catch (error) {
+      console.error("Erro ao pagar fatura:", error);
+      alert(error.response?.data?.message || "Erro ao pagar a fatura. Verifique o saldo da conta.");
+    }
+  }
 
   return (
     <div className={`receita-page ${styles.page}`}>
@@ -223,13 +317,12 @@ function Cartao() {
         </header>
 
         {cards.length === 0 ? (
-          <div className="receita-empty" style={{ textAlign: 'center', marginTop: '50px' }}>
+          <div className={`receita-empty ${styles.emptyWrapper}`}>
             <h3>Nenhum cartão cadastrado ainda.</h3>
             <p>Clique em "+ Novo Cartão" para começar a organizar suas faturas.</p>
           </div>
         ) : (
           <>
-            {/* O conteúdo do cartão só renderiza se existir pelo menos um cartão (selectedCard) */}
             {selectedCard && (
               <>
                 <section className={styles.carouselSection} aria-label="Seleção de cartões">
@@ -241,36 +334,84 @@ function Cartao() {
                         className={`${styles.cardTab} ${selectedCard.id === card.id ? styles.cardTabActive : ''}`}
                         onClick={() => setSelectedCardId(card.id)}
                       >
+                        <span
+                          className={styles.cardTabDot}
+                          style={{ background: card.bg || CARD_GRADIENT_FALLBACK }}
+                          aria-hidden="true"
+                        />
                         <span className={styles.cardTabName}>{card.nome}</span>
                       </button>
                     ))}
                   </div>
 
-                  <article className={styles.creditCard} style={{ background: selectedCard.bg || 'linear-gradient(135deg, #0f172a 0%, #4338ca 100%)' }}>
+                  <article className={styles.creditCard} style={{ background: selectedCard.bg || CARD_GRADIENT_FALLBACK }}>
+                    <div className={styles.cardSheen} aria-hidden="true" />
+
                     <div className={styles.cardTopRow}>
+                      <div className={styles.cardChip} aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+
                       <div className={styles.cardMenuWrap}>
-                        <button type="button" className={styles.cardMenuButton} onClick={() => setShowCardMenu(!showCardMenu)}>•••</button>
+                        <button
+                          type="button"
+                          className={styles.cardMenuButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCardMenu(!showCardMenu);
+                          }}
+                          aria-label="Mais opções do cartão"
+                        >
+                          •••
+                        </button>
                         {showCardMenu && (
                           <div className={styles.cardMenu}>
-                            <button type="button" onClick={openEditCardModal}>Editar cartão</button>
-                            <button type="button" className={styles.cardMenuDelete} onClick={handleDeleteCard}>Excluir cartão</button>
+                            <button 
+                              type="button" 
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                openEditCardModal();
+                              }}
+                            >
+                              Editar cartão
+                            </button>
+                            <button 
+                              type="button" 
+                              className={styles.cardMenuDelete} 
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                handleDeleteCard();
+                              }}
+                            >
+                              Excluir cartão
+                            </button>
                           </div>
                         )}
                       </div>
                     </div>
+
                     <div className={styles.cardMiddle}>
+                      <p className={styles.cardBrand}>Cartão de crédito</p>
                       <span className={styles.cardName}>{selectedCard.nome}</span>
+                      <p className={styles.cardNumber} aria-hidden="true">•••• •••• •••• ••••</p>
                     </div>
+
                     <div className={styles.cardFooter}>
                       <div>
                         <p className={styles.cardLabel}>Limite</p>
                         <p className={styles.cardValue}>{formatCurrency(selectedCard.limiteTotal)}</p>
                       </div>
-                      <div>
-                        <p className={styles.cardLabel}>Fechamento</p>
-                        <p className={styles.cardValue}>Dia {extrairDia(selectedCard.diaFechamento || selectedCard.fechamento)}</p>
-                        <p className={styles.cardLabel}>Vencimento</p>
-                        <p className={styles.cardValue}>Dia {extrairDia(selectedCard.diaVencimento || selectedCard.vencimento)}</p>
+                      <div className={styles.cardDates}>
+                        <div>
+                          <p className={styles.cardLabel}>Fechamento</p>
+                          <p className={styles.cardValue}>Dia {extrairDia(selectedCard.diaFechamento || selectedCard.fechamento)}</p>
+                        </div>
+                        <div>
+                          <p className={styles.cardLabel}>Vencimento</p>
+                          <p className={styles.cardValue}>Dia {extrairDia(selectedCard.diaVencimento || selectedCard.vencimento)}</p>
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -280,16 +421,23 @@ function Cartao() {
                   <div className={styles.summaryHeader}>
                     <div>
                       <p className={styles.summaryKicker}>Fatura atual</p>
-                      <h2>{formatCurrency(selectedCard.faturaAtual || 0)}</h2>
+                      <h2>{formatCurrency(faturaAtual)}</h2>
                     </div>
                     <span className={`${styles.statusBadge} ${(selectedCard.status || 'Aberta').toLowerCase() === 'atrasada' ? styles.statusDanger : ''}`}>
                       {selectedCard.status || 'Aberta'}
                     </span>
                   </div>
 
+                  <div className={styles.progressLabelRow}>
+                    <span className={styles.progressPercentage}>{percentualUso}% utilizado</span>
+                  </div>
+
                   <div className={styles.progressWrap}>
                     <div className={styles.progressTrack}>
-                      <div className={styles.progressBar} style={{ width: `${percentualUso}%` }} />
+                      <div
+                        className={`${styles.progressBar} ${percentualUso >= 90 ? styles.progressDanger : percentualUso >= 70 ? styles.progressWarning : ''}`}
+                        style={{ width: `${percentualUso}%` }}
+                      />
                     </div>
                     <div className={styles.progressMeta}>
                       <span className={styles.availableText}>Limite disponível: {formatCurrency(limiteDisponivel)}</span>
@@ -298,13 +446,13 @@ function Cartao() {
                   </div>
 
                   <div className={styles.infoRow}>
-                    <span>Fechamento: dia {extrairDia(selectedCard.diaFechamento)}</span>
-                    <span>Vencimento: dia {extrairDia(selectedCard.diaVencimento)}</span>
+                    <span>Fechamento: dia {extrairDia(selectedCard.diaFechamento || selectedCard.fechamento)}</span>
+                    <span>Vencimento: dia {extrairDia(selectedCard.diaVencimento || selectedCard.vencimento)}</span>
                   </div>
                 </section>
 
                 <section className={styles.actionsRow}>
-                  <button className="btn_comecar" onClick={() => setShowPaymentModal(true)} disabled={(selectedCard.faturaAtual || 0) === 0}>
+                  <button className="btn_comecar" onClick={() => setShowPaymentModal(true)} disabled={faturaAtual === 0}>
                     Pagar Fatura
                   </button>
                 </section>
@@ -329,16 +477,19 @@ function Cartao() {
                   </div>
 
                   <div className={styles.extratoList}>
-                    {lancamentosFiltrados.length === 0 ? (
+                    {despesasDoCartao.length === 0 ? (
                       <div className={styles.emptyState}>Nenhum lançamento para este período.</div>
                     ) : (
-                      lancamentosFiltrados.map((item) => (
+                      despesasDoCartao.map((item) => (
                         <article key={item.id} className={styles.extratoItem}>
                           <div className={styles.extratoItemMain}>
-                            <span className={styles.extratoIcon}>{item.icon}</span>
+                            <span className={styles.extratoIcon}>{item.icon || '🛍️'}</span>
                             <div>
                               <p className={styles.extratoTitle}>{item.descricao}</p>
-                              <p className={styles.extratoMeta}>{item.data}</p>
+                              <p className={styles.extratoMeta}>
+                                <span>{formatarDataBR(item.data)}</span>
+                                {item.categoria && <span className={styles.extratoCategoria}>{item.categoria}</span>}
+                              </p>
                             </div>
                           </div>
                           <span className={styles.extratoValue}>{formatCurrency(item.valor)}</span>
@@ -389,6 +540,7 @@ function Cartao() {
         </div>
       )}
 
+      {/* MODAL PAGAR FATURA */}
       {showPaymentModal && (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
           <div className={styles.modalCard}>
@@ -407,10 +559,16 @@ function Cartao() {
               <label className={styles.field}>
                 <span>Conta de origem</span>
                 <select
-                  value={paymentForm.conta}
-                  onChange={(event) => setPaymentForm((currentForm) => ({ ...currentForm, conta: event.target.value }))}
+                  value={paymentForm.contaId}
+                  onChange={(event) => setPaymentForm((currentForm) => ({ ...currentForm, contaId: event.target.value }))}
+                  required
                 >
-                  {contasOrigem.map((conta) => <option key={conta} value={conta}>{conta}</option>)}
+                  <option value="">Selecione uma conta...</option>
+                  {contasOrigem.map((conta) => (
+                    <option key={conta.id} value={conta.id}>
+                      {conta.nome || conta.descricao} (Saldo: {formatCurrency(conta.saldoAtual)})
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className={styles.field}>
@@ -420,7 +578,7 @@ function Cartao() {
                   min="0"
                   step="0.01"
                   required
-                  value={paymentType === 'total' ? selectedCard?.faturaAtual || '' : paymentValue}
+                  value={paymentType === 'total' ? faturaAtual : paymentValue}
                   readOnly={paymentType === 'total'}
                   onChange={(event) => {
                     setPaymentValue(event.target.value);
